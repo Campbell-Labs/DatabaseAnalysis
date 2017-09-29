@@ -1,4 +1,4 @@
-function [ dbt_AD, dbt_PosCon, dbt_Con , dbt_subjects, dbt_s ] = FilterData( dbt, nameAD, namePosCon, nameCon,...
+function [ dbts, dbt_AD, dbt_PosCon, dbt_Con , dbt_subjects, dbt_s ] = FilterData( dbt, nameAD, namePosCon, nameCon,...
                                             indexAD, indexPosCon, indexCon)
 %FILTERDATA Takes database table and filters for matching deposits
 %   args:
@@ -13,6 +13,7 @@ function [ dbt_AD, dbt_PosCon, dbt_Con , dbt_subjects, dbt_s ] = FilterData( dbt
 %       indexCon = A list of deposit location lists corresponding to 
 %           the Control spot numbers to be matched  
 %   returns:
+%       dbts = A structure including the next three tables
 %       dbt_AD = A table of AD patient data in order of matching
 %       dbt_PosCon = A table of Postive Control patient data in order of matching
 %       dbt_Con = A table of Control patient data in order of matching
@@ -37,7 +38,8 @@ dbt_locations = [];
 for i = [subject_names;{'AD','PosCon','Con'};{indexAD',indexPosCon',indexCon'}];
     name_cond = i(1:entries);
     cond = i(entries + 1);
-    cond_indexer = cell2mat(i(entries + 2));
+    cond_indexer = i(entries + 2);
+    cond_indexer = cond_indexer{:}; % Have to pull it out of a 1x1 cell
     entries = length(name_cond);
     
     [~,subject_unique_indicies]  = find_sorted_intersection(unique_names,name_cond);
@@ -49,7 +51,7 @@ for i = [subject_names;{'AD','PosCon','Con'};{indexAD',indexPosCon',indexCon'}];
     
     for index = 1:length(name_cond)
         name = name_cond(index);
-        location_indicies = cond_indexer(:, index);
+        location_indicies = cond_indexer{index, 1};
         dbt_subject = dbt(dbt.SubjectId == name,:);
         
         % Way of finding the spots, as the old spot numbers
@@ -65,9 +67,12 @@ end
 
 % This now creates three tables, with matched spots in order specified at
 % the beginning
+
 dbt_AD = dbt_locations(dbt_locations.Condition == 'AD',:);
 dbt_PosCon = dbt_locations(dbt_locations.Condition == 'PosCon',:);
 dbt_Con = dbt_locations(dbt_locations.Condition == 'Con',:);
+
+dbts = struct('AD', dbt_AD, 'PC',dbt_PosCon, 'C', dbt_Con);
 
 dbt_s = dbt(unique_indicies,:);
 
