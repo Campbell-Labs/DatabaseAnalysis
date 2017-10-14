@@ -15,7 +15,10 @@ indexCon{1} = [4,5,3,1,2,10,8,6,7,16,15,13,14,12,11];
 indexCon{2} = [25,24,20,21,26,22,27,23,28,10,11,12,9,8,7,6,14,15,16,17,18,3,2,1];
 
 diag_print_to_table = {'mean', 'median', 'std', 'values'};
-comp_print_to_table = {'h','p','normal'};
+comp_print_to_table = {'h_paired','p_paired','normal_paired',...
+    'h_unpaired','p_unpaired','normal_unpaired',...
+    'p_ANOVA'...
+    };
 
 %%%%%%%USER ENTRY ENDS%%%%%%%%%
 
@@ -29,7 +32,8 @@ end
 dbts = FilterData( dbt, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
 column_names = dbts.('AD').Properties.VariableNames;
-pol_prop = ~cellfun(@isempty,regexp(column_names,'(Deposit|Background)\w+')); % should check if start of string too
+pol_prop = ~cellfun(@isempty,regexp(column_names,...
+    '(?:Deposit|Background).*(Mean|Size)')); % String includes mean and is a deposit or background
 polarization_properties = column_names(pol_prop);
 % We now have three databases which contain the loction matched deposits
 %polarization_properties = [column_names(pol_prop); [...% List of polarizatioin properties to compare btw subjects
@@ -43,7 +47,10 @@ properties = {'mean', 'median', 'std', 'values', 'props'};
 
 comparisons = {'ADvPC', 'ADvC', 'PCvC'};
 comparing = {{'AD','PC'},{'AD','C'},{'PC','C'}};
-comparisons_values = {'p', 'h', 'normal'};
+%comparisons_values = {'p', 'h', 'normal'};
+comparisons_values = comp_print_to_table;
+
+compare_3_way = {'median'};
 
 %Just initalizing structres and arrays of zeros
 for j = 1:length(diagnosis);
@@ -70,9 +77,18 @@ end
 % simple to add in new calculations and print them out if needs be.
 for index = 1:table_height;
     polarization_property = char(polarization_properties(index));
+    is_deposit = any(regexp(polarization_property,'(Deposit)\w+'));
     for dig_index = 1:length(diagnosis);
         diagnosis_str = char(diagnosis(dig_index));
         data = dbts.(diagnosis_str).(polarization_property);
+        % This section replaces the control deposit field with it's
+        % respective background signal, as the control will not have a
+        % deposit...
+        if strcmp(diagnosis_str,'C') && is_deposit;
+            try data = dbts.(diagnosis_str).(strrep(polarization_property,'Deposit','Background'));
+            catch
+            end
+        end
         diag_struct.(diagnosis_str).('prop')(index,:) = data;
         diag_struct.(diagnosis_str).('mean')(index) = mean(data);
         diag_struct.(diagnosis_str).('median')(index) = median(data);
@@ -86,16 +102,43 @@ for index = 1:table_height;
         for i = 1:length(comparisons_values);
             prop_1 = diag_struct.(comparison_struct.(comparison).comparing{1}).prop(index,:);
             prop_2 = diag_struct.(comparison_struct.(comparison).comparing{2}).prop(index,:);
-            [comparison_struct.(comparison).h(index), ... 
-             comparison_struct.(comparison).p(index), ... 
-             comparison_struct.(comparison).normal(index)...
+            [comparison_struct.(comparison).h_paired(index), ... 
+             comparison_struct.(comparison).p_paired(index), ... 
+             comparison_struct.(comparison).normal_paired(index)...
              ] = CompareData(prop_1, prop_2, 1);
             % Here are the calculations for comparing data sets lie. Right
             % now all that is done is to run the compare data function
+            [comparison_struct.(comparison).h_unpaired(index), ... 
+             comparison_struct.(comparison).p_unpaired(index), ... 
+             comparison_struct.(comparison).normal_unpaired(index)...
+             ] = CompareData(prop_1, prop_2, 0);
+         try
+             comparison_ANOVA = anova2([prop_1;prop_2],1, 'off');
+         catch
+             comparison_ANOVA = NaN(2,1);
+         end
+         comparison_struct.(comparison).p_ANOVA(index) = comparison_ANOVA(2);
+         % Should add in groupings to tell diff between different subjects
+         % as we have that grouping data.
         end
     end
 end
+
 comparison_table = table();
+
+for i = 1:length(compare_3_way);
+    compare3_str = char(compare_3_way(i));
+    data = zeros(3,table_height);
+    middle_names = cell(table_height,1);
+    for j = 1:3;
+        data(j,:) = diag_struct.(char(diagnosis(j))).(compare3_str);
+    end
+    for k = 1:table_height
+        [~, indicies] = sort(data(:,k));
+        middle_names(k,1) = diagnosis(indicies(2));
+    end
+    comparison_table.(['middle_',compare3_str]) = middle_names;
+end
 
 for j = 1:length(comparisons);
     comp = char(comparisons(j));
