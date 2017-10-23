@@ -99,28 +99,41 @@ for index = 1:table_height;
     end
     for comp_index = 1:length(comparisons)
         comparison = char(comparisons(comp_index));
-        for i = 1:length(comparisons_values);
-            prop_1 = diag_struct.(comparison_struct.(comparison).comparing{1}).prop(index,:);
-            prop_2 = diag_struct.(comparison_struct.(comparison).comparing{2}).prop(index,:);
-            [comparison_struct.(comparison).h_paired(index), ... 
-             comparison_struct.(comparison).p_paired(index), ... 
-             comparison_struct.(comparison).normal_paired(index)...
-             ] = CompareData(prop_1, prop_2, 1);
-            % Here are the calculations for comparing data sets lie. Right
-            % now all that is done is to run the compare data function
-            [comparison_struct.(comparison).h_unpaired(index), ... 
-             comparison_struct.(comparison).p_unpaired(index), ... 
-             comparison_struct.(comparison).normal_unpaired(index)...
-             ] = CompareData(prop_1, prop_2, 0);
-         try
-             comparison_ANOVA = anova2([prop_1;prop_2],1, 'off');
-         catch
-             comparison_ANOVA = NaN(2,1);
+        prop_1 = diag_struct.(comparison_struct.(comparison).comparing{1}).prop(index,:);
+        prop_2 = diag_struct.(comparison_struct.(comparison).comparing{2}).prop(index,:);
+        [comparison_struct.(comparison).h_paired(index), ... 
+         comparison_struct.(comparison).p_paired(index), ... 
+         comparison_struct.(comparison).normal_paired(index)...
+         ] = CompareData(prop_1, prop_2, 1);
+        % Here are the calculations for comparing data sets lie. Right
+        % now all that is done is to run the compare data function
+        [comparison_struct.(comparison).h_unpaired(index), ... 
+         comparison_struct.(comparison).p_unpaired(index), ... 
+         comparison_struct.(comparison).normal_unpaired(index)...
+         ] = CompareData(prop_1, prop_2, 0);
+     %% This is the graphing section for good paired data
+     graph_paired = 0;
+     if strcmp(comparison, 'ADvPC') && comparison_struct.(comparison).h_paired(index) && graph_paired
+         figure
+         property_array = zeros(length(prop_1), length(diagnosis));
+         for k = 1:length(diagnosis)
+             diag = char(diagnosis(k));
+             property_array(:,k) = diag_struct.(diag).prop(index,:);
          end
-         comparison_struct.(comparison).p_ANOVA(index) = comparison_ANOVA(2);
-         % Should add in groupings to tell diff between different subjects
-         % as we have that grouping data.
-        end
+         for j = 1:length(property_array)
+             plot(1:3,property_array(j,:), 'b' ); hold on
+             title([strrep(polarization_property, '_', ' ') ,' p: ', num2str(comparison_struct.(comparison).p_paired(index))]);
+         end
+     end
+     %%
+     try
+         comparison_ANOVA = anova2([prop_1;prop_2],1, 'off');
+     catch
+         comparison_ANOVA = NaN(2,1);
+     end
+     comparison_struct.(comparison).p_ANOVA(index) = comparison_ANOVA(2);
+     % Should add in groupings to tell diff between different subjects
+     % as we have that grouping data.
     end
 end
 
