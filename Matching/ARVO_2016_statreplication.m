@@ -20,29 +20,88 @@ comp_print_to_table = {'h_paired','p_paired','normal_paired',...
     'p_ANOVA'...
     };
 
+pre_match = '(?:Deposit|Background)';
+post_match = '(Mean|Size)';
 %%%%%%%USER ENTRY ENDS%%%%%%%%%
 
 
 % Finding how many deposits are being compared for later analysis
-indicies_sum = 0;
+num_of_deposits = 0;
 for i = 1:length(indexAD)
-    indicies_sum = indicies_sum + length(indexAD{i});
+    num_of_deposits = num_of_deposits + length(indexAD{i});
 end
 
 dbts = FilterData( dbt, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
 column_names = dbts.('AD').Properties.VariableNames;
 pol_prop = ~cellfun(@isempty,regexp(column_names,...
-    '(?:Deposit|Background).*(Mean|Size)')); % String includes mean and is a deposit or background
-polarization_properties = column_names(pol_prop);
-% We now have three databases which contain the loction matched deposits
-%polarization_properties = [column_names(pol_prop); [...% List of polarizatioin properties to compare btw subjects
+    [pre_match, '.*', post_match])); % String includes mean and is a deposit or background
+polarization_properties.name = column_names(pol_prop);
+polarization_properties.is_deposit = ~cellfun(@isempty,regexp(polarization_properties.name,...
+    '(?:Deposit).*'));
+split_name = cellfun(@(c) strrep(c{1,2}, '_', ''), ...
+    regexp(polarization_properties.name,pre_match, 'split'), 'UniformOutput',false);
+[match_array, split_array] = regexp(split_name,post_match, 'match','split');
+
+polarization_properties.type = cellfun(@(c) c{1},match_array ,'UniformOutput',false);
+polarization_properties.property = cellfun(@(c) c{1,1},split_array ,'UniformOutput',false);
+
+diagnosis = {'AD','PC','C'};
+%% Attempting to make a ratioed data field
+ratio_names = [];
+ratio_indicies = [];
+for index = 1:length(polarization_properties.name);
+    if polarization_properties.is_deposit(index)
+        search_name = polarization_properties.property(index);
+        search_type = polarization_properties.type(index);
+        for j = 1:length(polarization_properties.name);
+            if ~polarization_properties.is_deposit(j) && ...
+                    strcmp(polarization_properties.property(j),search_name) && ...
+                    strcmp(polarization_properties.type(j),search_type)
+                ratio_names = [ratio_names; {['Ratio_',char(search_name),char(search_type)]}];
+                ratio_indicies = [ratio_indicies; [index,j]];
+                break
+            end
+        end
+    end
+end
+%%
+    
+% We now have three databases which contain the location matched deposits
+%polarization_properties.name = [column_names(pol_prop); [...% List of polarizatioin properties to compare btw subjects
 %    ];
 
+diagnosis = {'AD','PC','C'};
+
+    %% Making a data array to pull from later, and create the ratio array as well
+    og_height = length(polarization_properties.name);
+    ratio_height = length(ratio_names);
+    data_width = length(diagnosis);
+    data_array = zeros(og_height + ratio_height, data_width, num_of_deposits);
+    for i = 1:og_height
+        for j = 1:data_width
+            data_array(i,j,:) =  dbts.(char(diagnosis(j))).(char(polarization_properties.name(i)));
+        end
+    end
+    for i = 1:ratio_height
+        index = og_height + i;
+        for j = 1:data_width
+            ratio_i = ratio_indicies(i,:);
+            deposit_data = data_array(ratio_i(1),:,:);
+            background_data = data_array(ratio_i(2),:,:);
+            ratio_data = deposit_data./background_data;
+            data_array(index,:,:) = ratio_data;
+        end
+    end
+    data_ratio = zeros(ratio_height, data_width, num_of_deposits);
+    
+    %%
+    
 % This section is just some uninteresting data management, creating the
 % data structures and initalizing arrays for all of them
-table_height = length(polarization_properties);
-diagnosis = {'AD','PC','C'};
+polarization_names_full = [polarization_properties.name'; ratio_names];
+table_height = length(polarization_names_full);
+
 properties = {'mean', 'median', 'std', 'values', 'props'};
 
 comparisons = {'ADvPC', 'ADvC', 'PCvC'};
@@ -57,7 +116,7 @@ for j = 1:length(diagnosis);
     diag_struct.(char(diagnosis(j))) = struct();
     for i = 1:length(properties);
         if strcmp(properties(i), 'values'); dealer = cell(table_height,1);
-        elseif strcmp(properties(i), 'props'); dealer = zeros(table_height,indicies_sum);
+        elseif strcmp(properties(i), 'props'); dealer = zeros(table_height,num_of_deposits);
         else dealer = zeros(table_height,1);
         end
         diag_struct.(char(diagnosis(j))).(char(properties(i))) = deal(dealer);
@@ -76,11 +135,11 @@ end
 % saves them back into structures. It looks a bit messy but means its very
 % simple to add in new calculations and print them out if needs be.
 for index = 1:table_height;
-    polarization_property = char(polarization_properties(index));
+    polarization_property = char(polarization_names_full(index));
     is_deposit = any(regexp(polarization_property,'(Deposit)\w+'));
     for dig_index = 1:length(diagnosis);
         diagnosis_str = char(diagnosis(dig_index));
-        data = dbts.(diagnosis_str).(polarization_property);
+        data = squeeze(data_array(index, dig_index, :));
         % This section replaces the control deposit field with it's
         % respective background signal, as the control will not have a
         % deposit...
@@ -171,7 +230,7 @@ for i = 1:length(diag_print_to_table)
     end
 end
 
-comparison_table.Properties.RowNames = polarization_properties;
+comparison_table.Properties.RowNames = polarization_names_full;
 
 writetable(comparison_table, ['Comparison_Table_', strrep(datestr(now),':','_'), '.csv'],'WriteRowNames',true)
 
