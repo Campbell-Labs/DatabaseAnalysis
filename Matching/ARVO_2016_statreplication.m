@@ -1,4 +1,4 @@
-load('Database Tables (Animal Ex Vivo - Generated 28-Sep-2017).mat')
+load('Database Table (Animal Ex Vivo - Generated 23-Oct-2017)_sq.mat')
 
 %%%%%%%USER ENTRY%%%%%%%%%
 nameAD = {'Chris','Kurt'};
@@ -20,7 +20,7 @@ comp_print_to_table = {'h_paired','p_paired','normal_paired',...
     'p_ANOVA'...
     };
 
-pre_match = '(?:Deposit|Background)';
+pre_match = '(?:Deposit|Background|FullImage)';
 post_match = '(Mean|Size)';
 %%%%%%%USER ENTRY ENDS%%%%%%%%%
 
@@ -47,9 +47,11 @@ polarization_properties.type = cellfun(@(c) c{1},match_array ,'UniformOutput',fa
 polarization_properties.property = cellfun(@(c) c{1,1},split_array ,'UniformOutput',false);
 
 diagnosis = {'AD','PC','C'};
-%% Attempting to make a ratioed data field
-ratio_names = [];
-ratio_indicies = [];
+%% Attempting to make a calculated data fields
+fields = {'Ratio', 'Subtraction'};
+calculated_names = [];
+calculated_indicies = [];
+calculated_type = [];
 for index = 1:length(polarization_properties.name);
     if polarization_properties.is_deposit(index)
         search_name = polarization_properties.property(index);
@@ -58,8 +60,12 @@ for index = 1:length(polarization_properties.name);
             if ~polarization_properties.is_deposit(j) && ...
                     strcmp(polarization_properties.property(j),search_name) && ...
                     strcmp(polarization_properties.type(j),search_type)
-                ratio_names = [ratio_names; {['Ratio_',char(search_name),char(search_type)]}];
-                ratio_indicies = [ratio_indicies; [index,j]];
+                for i = 1:length(fields);
+                    field = fields(i);
+                    calculated_names = [calculated_names; {[char(field{1}),'_',char(search_name),char(search_type)]}];
+                    calculated_indicies = [calculated_indicies; [index,j]];
+                    calculated_type = [calculated_type, {field}];
+                end
                 break
             end
         end
@@ -73,33 +79,41 @@ end
 
 diagnosis = {'AD','PC','C'};
 
-    %% Making a data array to pull from later, and create the ratio array as well
+    %% Making a data array to pull from later, and create the calculated arrays as well
     og_height = length(polarization_properties.name);
-    ratio_height = length(ratio_names);
+    calculated_height = length(calculated_names);
     data_width = length(diagnosis);
-    data_array = zeros(og_height + ratio_height, data_width, num_of_deposits);
+    data_array = zeros(og_height + calculated_height, data_width, num_of_deposits);
     for i = 1:og_height
         for j = 1:data_width
             data_array(i,j,:) =  dbts.(char(diagnosis(j))).(char(polarization_properties.name(i)));
         end
     end
-    for i = 1:ratio_height
+    for i = 1:calculated_height
         index = og_height + i;
         for j = 1:data_width
-            ratio_i = ratio_indicies(i,:);
-            deposit_data = data_array(ratio_i(1),:,:);
-            background_data = data_array(ratio_i(2),:,:);
-            ratio_data = deposit_data./background_data;
-            data_array(index,:,:) = ratio_data;
+            calculated_i = calculated_indicies(i,:);
+            deposit_data = data_array(calculated_i(1),:,:);
+            background_data = data_array(calculated_i(2),:,:);
+            type_2conv = calculated_type(i);
+            type = char(type_2conv{1});
+            if strcmp(type, 'Ratio');
+                data = deposit_data./background_data;
+            elseif strcmp(type, 'Subtraction')
+                data = deposit_data - background_data;
+            else
+                error([type,' is not a valid field name'])
+            end
+            data_array(index,:,:) = data;
         end
     end
-    data_ratio = zeros(ratio_height, data_width, num_of_deposits);
+    data_calculated = zeros(calculated_height, data_width, num_of_deposits);
     
     %%
     
 % This section is just some uninteresting data management, creating the
 % data structures and initalizing arrays for all of them
-polarization_names_full = [polarization_properties.name'; ratio_names];
+polarization_names_full = [polarization_properties.name'; calculated_names];
 table_height = length(polarization_names_full);
 
 properties = {'mean', 'median', 'std', 'values', 'props'};
