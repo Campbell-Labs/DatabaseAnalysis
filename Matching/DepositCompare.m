@@ -184,6 +184,5 @@ for index = 1:table_height;
     end
 end
 
-disp(table_height)
 end
 
