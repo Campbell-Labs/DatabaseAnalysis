@@ -13,7 +13,6 @@ function [ dbts, dbt_1, dbt_2, dbt_3 , dbt_subjects, dbt_s ] = ...
 %       dbt_subjects = A table of subjects under study
 %       dbt_s = A table of all unique subjects
 
-
 % Data conversion to cell str
 name_1 = cellstr(name_1)';
 name_2 = cellstr(name_2)';
