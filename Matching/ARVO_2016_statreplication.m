@@ -1,5 +1,3 @@
-load('Database Table (Animal Ex Vivo SubSection - Generated 11-Nov-2017)')
-
 %%%%%%%USER ENTRY%%%%%%%%%
 nameAD = {'Chris','Kurt'};
 namePosCon = {'Tanner', 'Camille'};
@@ -27,8 +25,6 @@ diagnosis = {'AD', 'PC', 'C' }; % Note that the third property is always the rat
 
 compare_3_way = {'median'};
 
-table_name = 'Subsection';
-
 %%%%%%%USER ENTRY ENDS%%%%%%%%%
 
 % Finding how many deposits are being compared for later analysis
@@ -36,9 +32,20 @@ num_of_deposits = 0;
 for i = 1:length(indexAD)
     num_of_deposits = num_of_deposits + length(indexAD{i});
 end
+load('Database Table (Animal Ex Vivo SubSection - Generated 11-Nov-2017)')
+table_name = 'Subsection';
 
 dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
 [comparison_struct, diag_struct, comparisons, polarization_names_full] = DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table);
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full)
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
+
+load('Database Tables (Animal Ex Vivo - Generated 28-Sep-2017)')
+table_name = 'FullData';
+
+dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
+
+[comparison_struct, diag_struct, comparisons, polarization_names_full] = DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table);
+
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 

@@ -1,7 +1,22 @@
 function [ comparison_struct, diag_struct, comparisons , polarization_names_full] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values)
-%DepositCompare Summary of this function goes here
-%   Detailed explanation goes here
+%DepositCompare - Compares Deposits/Background data
+%   Given databases made with FilterData it will take the
+%   appropriate properties it will create ttests between each of the 
+%   diagnosis buckets.
+%   args:
+%       dbts = database table created by FilterData
+%       num_of_deposits = number of deposits, should be depreciated
+%       diagnosis = The names of the three groups.
+%       pre_match = Regex string to catch the begining of stings to choose
+%                   properties
+%       pre_match = Regex string to catch the end of stings to choose props
+%       comparisons_values = Comparisons to run
+%   returns:
+%       comparison_struct = A structure including the comparisons
+%       diag_struct = A structure holding the different diagnoisises
+%       comparisons = A list of the comparisons ran
+%       polarization_names_full = Names of all polarization properties run
 
 column_names = dbts.(diagnosis{1}).Properties.VariableNames;
 pol_prop = ~cellfun(@isempty,regexp(column_names,...
