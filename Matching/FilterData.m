@@ -1,41 +1,34 @@
-function [ dbts, dbt_AD, dbt_PosCon, dbt_Con , dbt_subjects, dbt_s ] = FilterData( dbt, nameAD, namePosCon, nameCon,...
-                                            indexAD, indexPosCon, indexCon)
+function [ dbts, dbt_1, dbt_2, dbt_3 , dbt_subjects, dbt_s ] = ...
+    FilterData( dbt, group_names, name_1, name_2, name_3,...
+                                            index_1, index_2, index_3)
 %FILTERDATA Takes database table and filters for matching deposits
 %   args:
 %       dbt = database table created by Erik's Database analysis scripts
-%       nameAD = A cellstr of AD patients under study
-%       namePosCon = A cellstr of Positive Control patients names under study
-%       namePosCon = A cellstr of Control patients names under study
-%       indexAD = A list of deposit location lists corresponding to 
-%       	the AD spot numbers to be matched  
-%       indexPosCon = A list of deposit location lists corresponding to 
-%           the Positive Control spot numbers to be matched  
-%       indexCon = A list of deposit location lists corresponding to 
-%           the Control spot numbers to be matched  
+%       name_# = A cellstr of patients names under study for each #
+%       index_# = A list of deposit location lists corresponding to 
+%       	the spot numbers to be matched for the group 
 %   returns:
 %       dbts = A structure including the next three tables
-%       dbt_AD = A table of AD patient data in order of matching
-%       dbt_PosCon = A table of Postive Control patient data in order of matching
-%       dbt_Con = A table of Control patient data in order of matching
+%       dbt_# = A table of patient data in order of matching for group #
 %       dbt_subjects = A table of subjects under study
 %       dbt_s = A table of all unique subjects
 
 
 % Data conversion to cell str
-nameAD = cellstr(nameAD)';
-namePosCon = cellstr(namePosCon)';
-nameCon = cellstr(nameCon)';
+name_1 = cellstr(name_1)';
+name_2 = cellstr(name_2)';
+name_3 = cellstr(name_3)';
 
-subject_names = [nameAD, namePosCon, nameCon];
+subject_names = [name_1, name_2, name_3];
 
-entries = length(nameAD);
+entries = length(name_1);
 
 [unique_names, unique_indicies] = unique(dbt.SubjectId);
 
 dbt_subjects = []; % initiating empty subject table
 dbt_locations = [];
 
-for i = [subject_names;{'AD','PosCon','Con'};{indexAD',indexPosCon',indexCon'}];
+for i = [subject_names;{group_names{1},group_names{2},group_names{3}};{index_1',index_2',index_3'}];
     name_cond = i(1:entries);
     cond = i(entries + 1);
     cond_indexer = i(entries + 2);
@@ -68,11 +61,11 @@ end
 % This now creates three tables, with matched spots in order specified at
 % the beginning
 
-dbt_AD = dbt_locations(dbt_locations.Condition == 'AD',:);
-dbt_PosCon = dbt_locations(dbt_locations.Condition == 'PosCon',:);
-dbt_Con = dbt_locations(dbt_locations.Condition == 'Con',:);
+dbt_1 = dbt_locations(dbt_locations.Condition == group_names{1},:);
+dbt_2 = dbt_locations(dbt_locations.Condition == group_names{2},:);
+dbt_3 = dbt_locations(dbt_locations.Condition == group_names{3},:);
 
-dbts = struct('AD', dbt_AD, 'PC',dbt_PosCon, 'C', dbt_Con);
+dbts = struct(group_names{1}, dbt_1, group_names{2},dbt_2, group_names{3}, dbt_3);
 
 dbt_s = dbt(unique_indicies,:);
 

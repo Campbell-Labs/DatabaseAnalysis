@@ -1,4 +1,4 @@
-load('Database Table (Animal Ex Vivo - Generated 23-Oct-2017)_sq.mat')
+load('Database Table (Animal Ex Vivo SubSection - Generated 11-Nov-2017)')
 
 %%%%%%%USER ENTRY%%%%%%%%%
 nameAD = {'Chris','Kurt'};
@@ -22,8 +22,10 @@ comp_print_to_table = {'h_paired','p_paired','normal_paired',...
 
 pre_match = '(?:Deposit|Background|FullImage)';
 post_match = '(Mean|Size)';
-%%%%%%%USER ENTRY ENDS%%%%%%%%%
 
+diagnosis = {'AD', 'PC', 'C' }; % Note that the third property is always the ratioed property
+
+%%%%%%%USER ENTRY ENDS%%%%%%%%%
 
 % Finding how many deposits are being compared for later analysis
 num_of_deposits = 0;
@@ -31,9 +33,9 @@ for i = 1:length(indexAD)
     num_of_deposits = num_of_deposits + length(indexAD{i});
 end
 
-dbts = FilterData( dbt, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
+dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
-column_names = dbts.('AD').Properties.VariableNames;
+column_names = dbts.(diagnosis{1}).Properties.VariableNames;
 pol_prop = ~cellfun(@isempty,regexp(column_names,...
     [pre_match, '.*', post_match])); % String includes mean and is a deposit or background
 polarization_properties.name = column_names(pol_prop);
@@ -46,7 +48,6 @@ split_name = cellfun(@(c) strrep(c{1,2}, '_', ''), ...
 polarization_properties.type = cellfun(@(c) c{1},match_array ,'UniformOutput',false);
 polarization_properties.property = cellfun(@(c) c{1,1},split_array ,'UniformOutput',false);
 
-diagnosis = {'AD','PC','C'};
 %% Attempting to make a calculated data fields
 fields = {'Ratio', 'Subtraction'};
 calculated_names = [];
@@ -76,8 +77,6 @@ end
 % We now have three databases which contain the location matched deposits
 %polarization_properties.name = [column_names(pol_prop); [...% List of polarizatioin properties to compare btw subjects
 %    ];
-
-diagnosis = {'AD','PC','C'};
 
     %% Making a data array to pull from later, and create the calculated arrays as well
     og_height = length(polarization_properties.name);
@@ -118,9 +117,18 @@ table_height = length(polarization_names_full);
 
 properties = {'mean', 'median', 'std', 'values', 'props'};
 
-comparisons = {'ADvPC', 'ADvC', 'PCvC'};
-comparing = {{'AD','PC'},{'AD','C'},{'PC','C'}};
 %comparisons_values = {'p', 'h', 'normal'};
+
+% Comparing all three diagnoises and creating those labels
+
+comparing = {{diagnosis{1},diagnosis{2}},...
+            {diagnosis{1},diagnosis{3}},...
+            {diagnosis{2},diagnosis{3}}};
+
+comparisons = {[comparing{1}{1},'v',comparing{1}{2}],...
+               [comparing{2}{1},'v',comparing{2}{2}],...
+               [comparing{3}{1},'v',comparing{3}{2}]};
+           
 comparisons_values = comp_print_to_table;
 
 compare_3_way = {'median'};
@@ -157,7 +165,7 @@ for index = 1:table_height;
         % This section replaces the control deposit field with it's
         % respective background signal, as the control will not have a
         % deposit...
-        if strcmp(diagnosis_str,'C') && is_deposit;
+        if strcmp(diagnosis_str,diagnosis{3}) && is_deposit;
             try data = dbts.(diagnosis_str).(strrep(polarization_property,'Deposit','Background'));
             catch
             end
@@ -185,18 +193,21 @@ for index = 1:table_height;
          comparison_struct.(comparison).normal_unpaired(index)...
          ] = CompareData(prop_1, prop_2, 0);
      %% This is the graphing section for good paired data
-     graph_paired = 0;
-     if strcmp(comparison, 'ADvPC') && comparison_struct.(comparison).h_paired(index) && graph_paired
-         figure
-         property_array = zeros(length(prop_1), length(diagnosis));
-         for k = 1:length(diagnosis)
-             diag = char(diagnosis(k));
-             property_array(:,k) = diag_struct.(diag).prop(index,:);
+     try
+         graph_paired = 0;
+         if strcmp(comparison, 'ADvPC') && comparison_struct.(comparison).h_paired(index) && graph_paired
+             figure
+             property_array = zeros(length(prop_1), length(diagnosis));
+             for k = 1:length(diagnosis)
+                 diag = char(diagnosis(k));
+                 property_array(:,k) = diag_struct.(diag).prop(index,:);
+             end
+             for j = 1:length(property_array)
+                 plot(1:3,property_array(j,:), 'b' ); hold on
+                 title([strrep(polarization_property, '_', ' ') ,' p: ', num2str(comparison_struct.(comparison).p_paired(index))]);
+             end
          end
-         for j = 1:length(property_array)
-             plot(1:3,property_array(j,:), 'b' ); hold on
-             title([strrep(polarization_property, '_', ' ') ,' p: ', num2str(comparison_struct.(comparison).p_paired(index))]);
-         end
+     catch
      end
      %%
      try
@@ -246,6 +257,6 @@ end
 
 comparison_table.Properties.RowNames = polarization_names_full;
 
-writetable(comparison_table, ['Comparison_Table_', strrep(datestr(now),':','_'), '.csv'],'WriteRowNames',true)
+writetable(comparison_table, ['Comparison_Table_Subsection', strrep(datestr(now),':','_'), '.csv'],'WriteRowNames',true)
 
 
