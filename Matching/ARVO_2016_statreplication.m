@@ -37,7 +37,8 @@ table_name = 'Subsection';
 
 dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
-[comparison_struct, diag_struct, comparisons, polarization_names_full] = DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table);
+[comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, false);
 
 DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
 
@@ -46,6 +47,7 @@ table_name = 'FullData';
 
 dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPosCon, indexCon);
 
-[comparison_struct, diag_struct, comparisons, polarization_names_full] = DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table);
+[comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, false);
 
 DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 

@@ -1,5 +1,5 @@
 function [ comparison_struct, diag_struct, comparisons , polarization_names_full] = ...
-    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values)
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values, mid_match)
 %DepositCompare - Compares Deposits/Background data
 %   Given databases made with FilterData it will take the
 %   appropriate properties it will create ttests between each of the 
@@ -19,14 +19,18 @@ function [ comparison_struct, diag_struct, comparisons , polarization_names_full
 %       polarization_names_full = Names of all polarization properties run
 
 column_names = dbts.(diagnosis{1}).Properties.VariableNames;
-pol_prop = ~cellfun(@isempty,regexp(column_names,...
-    [pre_match, '.*', post_match])); % String includes mean and is a deposit or background
+if mid_match
+    regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
+else
+    regex_matcher = [pre_match, '.*', post_match];
+end
+pol_prop = ~cellfun(@isempty,regexp(column_names, regex_matcher));
 polarization_properties.name = column_names(pol_prop);
 polarization_properties.is_deposit = ~cellfun(@isempty,regexp(polarization_properties.name,...
     '(?:Deposit).*'));
 split_name = cellfun(@(c) strrep(c{1,2}, '_', ''), ...
     regexp(polarization_properties.name,pre_match, 'split'), 'UniformOutput',false);
-[match_array, split_array] = regexp(split_name,post_match, 'match','split');
+[match_array, split_array] = regexp(split_name, post_match, 'match','split');
 
 polarization_properties.type = cellfun(@(c) c{1},match_array ,'UniformOutput',false);
 polarization_properties.property = cellfun(@(c) c{1,1},split_array ,'UniformOutput',false);

@@ -14,10 +14,13 @@ dbt_VA_q = match_table_regex(dbt_q, VA_regex ,'SubjectId');
 dbt_VA = match_table_regex(dbt, VA_regex ,'SubjectId');
 
 dbt_VA = dbt_VA(~logical(grp2idx(dbt_VA.SessionRejected) - 1),:); % Dont know how to convert out of categorical data
+dbt_VA = dbt_VA(logical(grp2idx(dbt_VA.IsProcessed) - 1),:);
 
 VA_subjects = all_subjects(VA_s_bool); % This just gives is only the VA subject names
 
 %% User entry
+
+table_name = 'VA_matched_testing_';
 
 % These should correlate with High, Intermediate and Low/None
 
@@ -25,9 +28,9 @@ diagnosis = {'HI', 'INT', 'LO' }; % Note that the third property is always the r
 
 pre_match = '(?:Deposit|Background|FullImage)';
 
-end_match = '(Mean|Size)';
+post_match = '(Mean|Size)';
 
-match_properties = {'Diattenuation_Circ','DI','Psi','DP',...
+match_properties = {'Diattenuation_Circ','DI_','Psi','DP',...
  'Polarizance_45','Polarizance_Circ','Polarizance_Horz','Polarizance_Lin'};
 
 diag_print_to_table = {'mean', 'median', 'std', 'values'};
@@ -39,13 +42,13 @@ comp_print_to_table = {'h_paired','p_paired','normal_paired',...
 compare_3_way = {'median'};
 
 %% Management
-mid_match = '.*(';
-for i = 1:length(match_properties)
+mid_match = ['.*(',match_properties{1}];
+for i = 2:length(match_properties)
     mid_match = [mid_match,'|', match_properties{i}];
 end
 mid_match = [mid_match,')'];
-
-post_match = [mid_match, end_match];
+% 
+% post_match = [mid_match,'.*', end_match];
 
 %% Here I will split up the three groups
 all_subjects = cellstr(dbt_s.SubjectId);
@@ -54,12 +57,16 @@ dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
 dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
 dbt_VA_LO = match_table_regex(dbt_VA, ['(low|none)', '.*'] , 'Likelihood_of_AD');
 
+dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Good' ,'SegmentationQuality');
+
+dbt_VA_INT = match_table_regex(dbt_VA_INT, '(Good|Too Big)' ,'SegmentationQuality');
+
+%dbt_VA_INT = dbt_VA_INT(logical(dbt_VA_INT.DepositSize > 500), :);
+
 %% Here I will match the locations of the deposits to send to DataCompare
 point_struct_HI = point_listmaker(dbt_VA_HI);
 point_struct_INT = point_listmaker(dbt_VA_INT);
 point_struct_LO = point_listmaker(dbt_VA_LO);
-
-%point_struct_LO.distance_INT =  point_comparer(point_struct_LO, point_struct_INT);
 
 smallest_height = min([length(point_struct_HI.indexer),...
                        length(point_struct_INT.indexer),...
@@ -83,13 +90,27 @@ for LO_index = 1:smallest_height;
     LO_HI_dist(LO_index) = compare_LO_HI_dist_sort(LO_index,1);
 end
 
-%distances are only for the 
 [pairing_list, LO_INT_rep_dist] = replace_duplicate_entries(pairing_list, 2, compare_LO_INT_dist_sort, compare_LO_INT_ind);
 [pairing_list, LO_HI_rep_dist] = replace_duplicate_entries(pairing_list, 1, compare_LO_HI_dist_sort, compare_LO_HI_ind);
 
 LO_INT_dist(LO_INT_rep_dist ~= 1) = LO_INT_rep_dist(LO_INT_rep_dist ~= 1);
 LO_HI_dist(LO_HI_rep_dist ~= 1) = LO_HI_rep_dist(LO_HI_rep_dist ~= 1);
 
+%% Values now are paired as stated in paired list
+
+dbt_VA_HI = dbt_VA_HI(pairing_list(:,1),:);
+dbt_VA_INT = dbt_VA_INT(pairing_list(:,2),:);
+dbt_VA_LO = dbt_VA_LO(pairing_list(:,3),:);
+
+dbts = struct(diagnosis{1}, dbt_VA_HI, diagnosis{2},dbt_VA_INT, diagnosis{3}, dbt_VA_LO);
+%% Print Data
+num_of_deposits = length(pairing_list(:,1));
+[comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match);
+
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
+
+%% run in debug and breakpoint here.
 disp('done')
 
 function [matched_table, matched_bool] = match_table_regex(table, regex, field)
@@ -202,7 +223,7 @@ function [pairing_list, distance_from] = replace_duplicate_entries(pairing_list,
                         pairing_list(index, column_index) = possible_index;
                         distance_from(index) = compare_matrix(smallest_row_index, k, 2);
                         used_indicies = [used_indicies; possible_index];
-                        completed_rows(smallest_row_index) = 1;
+                        completed_rows(uncompleted_rows(smallest_row_index)) = 1;
                     else
                         k = k + 1;
                     end
