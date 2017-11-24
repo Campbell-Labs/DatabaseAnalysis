@@ -66,6 +66,7 @@ smallest_height = min([length(point_struct_HI.indexer),...
                        length(point_struct_LO.indexer)]);
 
 pairing_list = zeros(smallest_height, 3);
+[LO_INT_dist, LO_HI_dist] = deal(zeros(smallest_height, 1));
 
 pairing_list(:,3) = 1:smallest_height;  %This implies that LO is smallest
 
@@ -77,13 +78,19 @@ pairing_list(:,3) = 1:smallest_height;  %This implies that LO is smallest
 for LO_index = 1:smallest_height;
     pairing_list(LO_index,3) = LO_index;
     pairing_list(LO_index,2) = compare_LO_INT_ind(LO_index,1);
+    LO_INT_dist(LO_index) = compare_LO_INT_dist_sort(LO_index,1);
     pairing_list(LO_index,1) = compare_LO_HI_ind(LO_index,1);
+    LO_HI_dist(LO_index) = compare_LO_HI_dist_sort(LO_index,1);
 end
 
-pairing_list = replace_duplicate_entries(pairing_list, 2, compare_LO_INT_dist_sort, compare_LO_INT_ind);
-pairing_list = replace_duplicate_entries(pairing_list, 1, compare_LO_HI_dist_sort, compare_LO_HI_ind);
+%distances are only for the 
+[pairing_list, LO_INT_rep_dist] = replace_duplicate_entries(pairing_list, 2, compare_LO_INT_dist_sort, compare_LO_INT_ind);
+[pairing_list, LO_HI_rep_dist] = replace_duplicate_entries(pairing_list, 1, compare_LO_HI_dist_sort, compare_LO_HI_ind);
 
-disp('yooo')
+LO_INT_dist(LO_INT_rep_dist ~= 1) = LO_INT_rep_dist(LO_INT_rep_dist ~= 1);
+LO_HI_dist(LO_HI_rep_dist ~= 1) = LO_HI_rep_dist(LO_HI_rep_dist ~= 1);
+
+disp('done')
 
 function [matched_table, matched_bool] = match_table_regex(table, regex, field)
     matched_bool = ~cellfun(@isempty,regexp(cellstr(table.(field)),regex));
@@ -120,23 +127,96 @@ function [distance, sorted_indicies, sorted_distances] = point_comparer(main_lis
         [sorted_distances(i,:), sorted_indicies(i,:)] = sort(distance(i,:));
     end
     
-function pairing_list = replace_duplicate_entries(pairing_list, column, sorted_distances, sorted_indicies)
-    column = pairing_list(:, column);
+function [pairing_list, distance_from] = replace_duplicate_entries(pairing_list, column_index, sorted_distances, sorted_indicies)
+    % This pairing is done by brute force... not elegant at all, but it
+    % seems to be giving good results at the moment
+
+    column = pairing_list(:, column_index);
     [N, E] = histcounts(column, unique(column));
     dup_value  = E(N > 1);
     dup_index  = cell(1, numel(dup_value));
-    for k = 1:numel(dup_value)
-      dup_index{k} = find(column == dup_value(k));
+    for j = 1:numel(dup_value)
+      dup_index{j} = find(column == dup_value(j));
     end
+    
+    used_indicies = setdiff(E,dup_value);
+    
+    distance_from = ones(size(column));
     
     for i = 1:length(dup_index)
         indicies = dup_index{i};
         if length(indicies) > 1
             % This means that we have to compare and replace these values
-            compare_matrix = zeros(length(indicies));
+            completed_rows = zeros(length(indicies),1); % bool to check if theyre complete
+            compare_matrix = zeros(length(indicies), length(sorted_distances), 2);
             for j = 1:length(indicies)
+                % Create matrix comparing their closest indicies and
+                % distances
                 index = indicies(j);
-                compare_matrix(j,:) = sorted_distances(index, 1:length(indicies));
+                compare_matrix(j,:,1) = sorted_indicies(index, :);
+                compare_matrix(j,:,2) = sorted_distances(index, :);
+            end
+            %check if some have the exact same closest indicies
+            [~, ia, ic] = unique(compare_matrix(:,:,1), 'rows');
+            repeated_rows = setdiff(1:size(compare_matrix(:,:,1),1), ...
+                            ia( sum(bsxfun(@eq,ic,(1:max(ic))))<=1 ));
+            %If they have the same closest indicies they just get them in
+            %order
+            for j = 1:length(repeated_rows)
+                index = indicies(repeated_rows(j));
+                row = repeated_rows(j);
+                % Ugly way of making sure we dont get a repeated index
+                [index_to_add, index_row, index_col] = recursive_search(compare_matrix(:,:,1),row,j, used_indicies);
+                used_indicies = [used_indicies; index_to_add];
+                pairing_list(index, column_index) =  index_to_add;
+                distance_from(index) = compare_matrix(index_row, index_col, 2);
+                completed_rows(repeated_rows(j)) = 1;
+            end
+            uncompleted_rows = find(completed_rows == 0);
+            while length(uncompleted_rows) >= 1
+            if length(uncompleted_rows) == 1
+                % If nothing is competing with the deposit we just give it
+                % the best deposit which hasnt been used yet
+                index = indicies(uncompleted_rows(1));
+                % Ugly way of making sure we dont get a repeated index
+                [index_to_add, index_row, index_col] = recursive_search(compare_matrix(:,:,1),uncompleted_rows(1),1, used_indicies);
+                used_indicies = [used_indicies; index_to_add];
+                pairing_list(index, column_index) = index_to_add;
+                distance_from(index) = compare_matrix(index_row, index_col, 2);
+                completed_rows(uncompleted_rows(1)) = 1;
+            elseif length(uncompleted_rows) > 1
+                %Here we should compare the deposits
+                %This means the distances should be different?!
+                
+                compete_matrix = compare_matrix(uncompleted_rows,:,:);
+                winner_not_found = true;
+                k = 1;
+                while winner_not_found;
+                    distances = compete_matrix(:,k,2);
+                    [~, sorted_dist_index] = sort(distances, 'ascend');
+                    smallest_row_index = find(sorted_dist_index == 1);
+                    possible_index = compare_matrix(smallest_row_index,k,1);
+                    if ~ismember(possible_index, used_indicies)
+                        winner_not_found = false;
+                        % Index is okay to use
+                        pairing_list(index, column_index) = possible_index;
+                        distance_from(index) = compare_matrix(smallest_row_index, k, 2);
+                        used_indicies = [used_indicies; possible_index];
+                        completed_rows(smallest_row_index) = 1;
+                    else
+                        k = k + 1;
+                    end
+                end
+            end
+            uncompleted_rows = find(completed_rows == 0);
             end
         end
+    end
+    
+function [index, row, col] = recursive_search(indicies, row, col, used_indicies)
+    possible_index = indicies(row, col);
+    if ~ismember(possible_index, used_indicies)
+        index = possible_index;
+    else
+        index = recursive_search(indicies, row, col+1, used_indicies);
     end
