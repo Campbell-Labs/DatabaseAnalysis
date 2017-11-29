@@ -2,7 +2,7 @@ function null = Human_data_analysis()
 %Creating a dummy function so I can create subfunctions later on
 null = NaN;
 
-load('Database Table (Human Ex Vivo - Generated 03-Oct-2017)_sq')
+load('Database Table (Human Ex Vivo - Generated 24-Nov-2017)')
 
 %% First just reducing the databases to only include VA subjects
 VA_regex = ['VA', '.*'];
@@ -12,9 +12,6 @@ all_subjects = cellstr(dbt_s.SubjectId);
 dbt_VA_e = match_table_regex(dbt_e, VA_regex ,'SubjectId');
 dbt_VA_q = match_table_regex(dbt_q, VA_regex ,'SubjectId');
 dbt_VA = match_table_regex(dbt, VA_regex ,'SubjectId');
-
-dbt_VA = dbt_VA(~logical(grp2idx(dbt_VA.SessionRejected) - 1),:); % Dont know how to convert out of categorical data
-dbt_VA = dbt_VA(logical(grp2idx(dbt_VA.IsProcessed) - 1),:);
 
 VA_subjects = all_subjects(VA_s_bool); % This just gives is only the VA subject names
 
@@ -26,7 +23,7 @@ table_name = 'VA_matched_testing_';
 
 diagnosis = {'HI', 'INT', 'LO' }; % Note that the third property is always the ratioed property
 
-pre_match = '(?:Deposit|Background|FullImage)';
+pre_match = '(?:Deposit|Background)';
 
 post_match = '(Mean|Size)';
 
@@ -50,18 +47,48 @@ mid_match = [mid_match,')'];
 % 
 % post_match = [mid_match,'.*', end_match];
 
+%% Reject some garbage data
+reject_bool = dbt_VA.SubjectId == 'VA15-14';
+dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
+
+%% Unrejecting Subject with only dust and particulate measured, for
+% background images, since we can segment this out, low deposits will not
+% be accurate though
+un_reject_bool = dbt_VA.SubjectId == 'VA14-105';
+dbt_VA(un_reject_bool,:).SessionRejected = categorical(zeros(sum(un_reject_bool),1));
+
+%% Changing diagnoisis of subject which was improperly labelled on import 
+% Pretty messy, but converting in and out of categorical seems non-trivial
+mislabelled_diagnosis_bool = dbt_VA.SubjectId == 'VA12-55';
+%(dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
+%low or nonwe too?
+replace_array = categorical(zeros(sum(mislabelled_diagnosis_bool),1), [0, 1, 2, 3,4], categories(dbt_VA.Likelihood_of_AD), 'Ordinal', true);
+replace_array(:) = 'low';
+dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
 %% Here I will split up the three groups
 all_subjects = cellstr(dbt_s.SubjectId);
+
+
+dbt_VA = dbt_VA(dbt_VA.SessionRejected == '0', :); % Dont know how to convert out of categorical data
+dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
 
 dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
 dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
 dbt_VA_LO = match_table_regex(dbt_VA, ['(low|none)', '.*'] , 'Likelihood_of_AD');
 
 dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Good' ,'SegmentationQuality');
-
-dbt_VA_INT = match_table_regex(dbt_VA_INT, '(Good|Too Big)' ,'SegmentationQuality');
+dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Good' ,'SegmentationQuality');
 
 %dbt_VA_INT = dbt_VA_INT(logical(dbt_VA_INT.DepositSize > 500), :);
+
+%dbt_VA_HI = dbt_VA_HI(logical(dbt_VA_HI.SubjectIdx > 30), :);
+
+dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Erik''s Program' ,'RegistrationType');
+dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Erik''s Program' ,'RegistrationType');
+
+% % This is the section to limit only to after the automatic stage
+% dbt_VA_HI = dbt_VA_HI(dbt_VA_HI.SubjectIdx >30, :);
+% dbt_VA_INT = dbt_VA_INT(dbt_VA_INT.SubjectIdx >30, :);
 
 %% Here I will match the locations of the deposits to send to DataCompare
 point_struct_HI = point_listmaker(dbt_VA_HI);
@@ -108,7 +135,9 @@ num_of_deposits = length(pairing_list(:,1));
 [comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match);
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
+out_path = DataGraph(dbts, diagnosis, polarization_names_full, pre_match);
+
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, out_path) 
 
 %% run in debug and breakpoint here.
 disp('done')

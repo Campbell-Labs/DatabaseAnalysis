@@ -1,5 +1,5 @@
 function DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, ...
-    comp_print_to_table , diagnosis, comparisons, polarization_names_full)
+    comp_print_to_table , diagnosis, comparisons, polarization_names_full, directory)
 %DataPrint Function which prints out the tables inputted into a csv
 %   Detailed explanation goes here
 
@@ -41,7 +41,7 @@ end
 
 comparison_table.Properties.RowNames = polarization_names_full;
 
-writetable(comparison_table, ['Comparison_Table_',table_name, strrep(datestr(now),':','_'), '.csv'],'WriteRowNames',true)
+writetable(comparison_table, [directory, '\Comparison_Table_',table_name, datestr(now, 'yy-mm-dd-HH-MM-SS'), '.xlsx'],'WriteRowNames',true)
 
 end
 

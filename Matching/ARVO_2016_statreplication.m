@@ -40,7 +40,7 @@ dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPo
 [comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, false);
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, pwd) 
 
 load('Database Tables (Animal Ex Vivo - Generated 28-Sep-2017)')
 table_name = 'FullData';
@@ -50,4 +50,4 @@ dbts = FilterData( dbt, diagnosis, nameAD, namePosCon, nameCon, indexAD, indexPo
 [comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, false);
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full) 
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, pwd) 
