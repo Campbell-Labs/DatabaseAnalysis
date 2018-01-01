@@ -2,7 +2,7 @@ function null = Human_data_analysis()
 %Creating a dummy function so I can create subfunctions later on
 null = NaN;
 
-load('Database Table (Human Ex Vivo - Generated 24-Nov-2017)')
+load('Database Table (Human Ex Vivo - Generated 29-Nov-2017)')
 
 %% First just reducing the databases to only include VA subjects
 VA_regex = ['VA', '.*'];
@@ -21,14 +21,14 @@ table_name = 'VA_matched_testing_';
 
 % These should correlate with High, Intermediate and Low/None
 
-diagnosis = {'HI', 'INT', 'LO' }; % Note that the third property is always the ratioed property
+diagnosis = {'HI', 'INT', 'NONE' }; % Note that the third property is always the ratioed property
 
 pre_match = '(?:Deposit|Background)';
 
-post_match = '(Mean|Size)';
+post_match = '(Mean|Size|Mode)';
 
-match_properties = {'Diattenuation_Circ','DI_','Psi','DP',...
- 'Polarizance_45','Polarizance_Circ','Polarizance_Horz','Polarizance_Lin'};
+match_properties = {'Diattenuation_Circ','DI_','Psi', 'Retardance_Circ',...
+'Polarizance_Circ','Polarizance_Lin'};
 
 diag_print_to_table = {'mean', 'median', 'std', 'values'};
 comp_print_to_table = {'h_paired','p_paired','normal_paired',...
@@ -48,7 +48,7 @@ mid_match = [mid_match,')'];
 % post_match = [mid_match,'.*', end_match];
 
 %% Reject some garbage data
-reject_bool = dbt_VA.SubjectId == 'VA15-14';
+reject_bool = dbt_VA.SubjectId == 'VA15-14' ;
 dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
 
 %% Unrejecting Subject with only dust and particulate measured, for
@@ -59,9 +59,9 @@ dbt_VA(un_reject_bool,:).SessionRejected = categorical(zeros(sum(un_reject_bool)
 
 %% Changing diagnoisis of subject which was improperly labelled on import 
 % Pretty messy, but converting in and out of categorical seems non-trivial
-mislabelled_diagnosis_bool = dbt_VA.SubjectId == 'VA12-55';
-%(dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
-%low or nonwe too?
+mislabelled_diagnosis_bool = ...dbt_VA.SubjectId == 'VA12-55';
+(dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
+%low or none too?
 replace_array = categorical(zeros(sum(mislabelled_diagnosis_bool),1), [0, 1, 2, 3,4], categories(dbt_VA.Likelihood_of_AD), 'Ordinal', true);
 replace_array(:) = 'low';
 dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
@@ -70,11 +70,12 @@ all_subjects = cellstr(dbt_s.SubjectId);
 
 
 dbt_VA = dbt_VA(dbt_VA.SessionRejected == '0', :); % Dont know how to convert out of categorical data
+%dbt_VA = dbt_VA(dbt_VA.QuarterArbitrary == '0', :);
 dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
 
 dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
 dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
-dbt_VA_LO = match_table_regex(dbt_VA, ['(low|none)', '.*'] , 'Likelihood_of_AD');
+dbt_VA_LO = match_table_regex(dbt_VA, ['none', '.*'] , 'Likelihood_of_AD');
 
 dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Good' ,'SegmentationQuality');
 dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Good' ,'SegmentationQuality');
@@ -132,12 +133,12 @@ dbt_VA_LO = dbt_VA_LO(pairing_list(:,3),:);
 dbts = struct(diagnosis{1}, dbt_VA_HI, diagnosis{2},dbt_VA_INT, diagnosis{3}, dbt_VA_LO);
 %% Print Data
 num_of_deposits = length(pairing_list(:,1));
-[comparison_struct, diag_struct, comparisons, polarization_names_full] = ...
+[comparison_struct, diag_struct, comparisons, polarization_names_full, p_ANOVA_all] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match);
 
 out_path = DataGraph(dbts, diagnosis, polarization_names_full, pre_match);
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, out_path) 
+DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, out_path, p_ANOVA_all) 
 
 %% run in debug and breakpoint here.
 disp('done')

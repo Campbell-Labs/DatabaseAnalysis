@@ -1,5 +1,5 @@
 function DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, ...
-    comp_print_to_table , diagnosis, comparisons, polarization_names_full, directory)
+    comp_print_to_table , diagnosis, comparisons, polarization_names_full, directory, ANOVA)
 %DataPrint Function which prints out the tables inputted into a csv
 %   Detailed explanation goes here
 
@@ -20,6 +20,8 @@ for i = 1:length(compare_3_way);
     end
     comparison_table.(['middle_',compare3_str]) = middle_names;
 end
+
+comparison_table.ANOVA_all_way = ANOVA';
 
 for j = 1:length(comparisons);
     comp = char(comparisons(j));

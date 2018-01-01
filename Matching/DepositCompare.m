@@ -1,4 +1,4 @@
-function [ comparison_struct, diag_struct, comparisons , polarization_names_full] = ...
+function [ comparison_struct, diag_struct, comparisons , polarization_names_full, p_ANOVA_all] = ...
     DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values, mid_match)
 %DepositCompare - Compares Deposits/Background data
 %   Given databases made with FilterData it will take the
@@ -60,7 +60,7 @@ for index = 1:length(polarization_properties.name);
     end
 end
 %%
-    
+
 % We now have three databases which contain the location matched deposits
 %polarization_properties.name = [column_names(pol_prop); [...% List of polarizatioin properties to compare btw subjects
 %    ];
@@ -101,6 +101,8 @@ end
 polarization_names_full = [polarization_properties.name'; calculated_names];
 table_height = length(polarization_names_full);
 
+p_ANOVA_all = zeros(1, table_height);
+
 properties = {'mean', 'median', 'std', 'values', 'props'};
 
 %comparisons_values = {'p', 'h', 'normal'};
@@ -114,6 +116,8 @@ comparing = {{diagnosis{1},diagnosis{2}},...
 comparisons = {[comparing{1}{1},'v',comparing{1}{2}],...
                [comparing{2}{1},'v',comparing{2}{2}],...
                [comparing{3}{1},'v',comparing{3}{2}]};
+           
+prop_3_way = {'ANOVA'};
 
 %Just initalizing structres and arrays of zeros
 for j = 1:length(diagnosis);
@@ -193,7 +197,7 @@ for index = 1:table_height;
      end
      %%
      try
-         comparison_ANOVA = anova2([prop_1;prop_2],1, 'off');
+         comparison_ANOVA = anova1([prop_1;prop_2], 'off');
      catch
          comparison_ANOVA = NaN(2,1);
      end
@@ -201,6 +205,12 @@ for index = 1:table_height;
      % Should add in groupings to tell diff between different subjects
      % as we have that grouping data.
     end
+    %% trying to do ANOVA with the three groups
+    ANOVA_values = zeros(num_of_deposits, length(diagnosis));
+    for i = 1:length(diagnosis)
+        ANOVA_values(:,i) = diag_struct.(diagnosis{i}).values{index};
+    end
+    p_ANOVA_all(:, index) = anova1(ANOVA_values, diagnosis, 'off');
 end
 
 end
