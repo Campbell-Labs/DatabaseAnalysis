@@ -13,11 +13,10 @@ polarization_names = polarization_names(~cellfun('isempty',polarization_names));
 
 samples = height(dbts.(diagnosis{1}));
 x = 1:samples;
-
 for polarization_prop = polarization_names'
     polarization_str = char(polarization_prop{1});
     [values, x_values, g_values] = deal(zeros(samples, 3));
-    for diag_index = 1:length(diagnosis)
+    for diag_index = length(diagnosis):-1:1
         diagnosis_str = char(diagnosis(diag_index));
         values(:, diag_index) = dbts.(diagnosis_str).(polarization_str);
         x_values(:, diag_index) = x;
@@ -28,7 +27,13 @@ for polarization_prop = polarization_names'
     title(strrep(polarization_str,'_',' '));
     legend(diagnosis);
     print([new_directory, '\Scatter_', polarization_str ],'-dpng')
-    boxplot(values, 'Labels', diagnosis)
+    h = boxplot(values, 'Labels', diagnosis);
     title(strrep(polarization_str,'_',' '));
+%%% 
+set( gca                       , ...
+    'FontName'   , 'Helvetica',...
+'XDir','reverse');
+%%%
+    
     print([new_directory, '\BoxPlot_', polarization_str ],'-dpng')
 end

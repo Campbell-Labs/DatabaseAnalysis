@@ -2,7 +2,7 @@ function null = Human_data_analysis()
 %Creating a dummy function so I can create subfunctions later on
 null = NaN;
 
-load('Database Table (Human Ex Vivo - Generated 29-Nov-2017)')
+load('Database Table (Human Ex Vivo - Generated 19-Dec-2017)')
 
 %% First just reducing the databases to only include VA subjects
 VA_regex = ['VA', '.*'];
@@ -21,11 +21,11 @@ table_name = 'VA_matched_testing_';
 
 % These should correlate with High, Intermediate and Low/None
 
-diagnosis = {'HI', 'INT', 'NONE' }; % Note that the third property is always the ratioed property
+diagnosis = {'HIGH', 'LOW', 'NONE' }; % Note that the third property is always the ratioed property
 
 pre_match = '(?:Deposit|Background)';
 
-post_match = '(Mean|Size|Mode)';
+post_match = '(Mean|Size)';
 
 match_properties = {'Diattenuation_Circ','DI_','Psi', 'Retardance_Circ',...
 'Polarizance_Circ','Polarizance_Lin'};
@@ -74,7 +74,7 @@ dbt_VA = dbt_VA(dbt_VA.SessionRejected == '0', :); % Dont know how to convert ou
 dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
 
 dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
-dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
+dbt_VA_INT = match_table_regex(dbt_VA, ['low', '.*'] , 'Likelihood_of_AD');
 dbt_VA_LO = match_table_regex(dbt_VA, ['none', '.*'] , 'Likelihood_of_AD');
 
 dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Good' ,'SegmentationQuality');
