@@ -54,6 +54,10 @@ old_dbt = dbt; clear dbt
 disp('Creating Structure of Pathnames...')
 dbpaths = create_pathnames_structure(database_path);
 save([database_name, ' - Database Paths (Generated ', strrep(datestr(now, 'yy/mm/dd'),'/','-'), ').mat'], 'dbpaths')
+try
+    save(['Y:\shared\Erik\Database Analysis\', database_name, ' - Database Paths (Generated ', strrep(datestr(now, 'yy/mm/dd'),'/','-'), ').mat'], 'dbpaths')
+end
+
 
 disp('Creating Table of Metadata...')
 dbt = create_metadata_table(dbpaths, label_empty);
@@ -74,7 +78,9 @@ dbt_s = dbt(dbt.IsNewSubject,:);
 dbt_e = dbt(dbt.IsNewEye,:);
 dbt_q = dbt(dbt.IsNewQuarter,:);
 save([database_name, ' - Database Table (Generated ', strrep(datestr(now, 'yy/mm/dd'),'/','-'), ').mat'])
-save(['Y:\shared\Erik\Database Analysis\', database_name, ' - Database Table (Generated ', strrep(datestr(now, 'yy/mm/dd'),'/','-'), ').mat'])
+try
+    save(['Y:\shared\Erik\Database Analysis\', database_name, ' - Database Table (Generated ', strrep(datestr(now, 'yy/mm/dd'),'/','-'), ').mat'])
+end
 
 %% Notes
 
@@ -317,6 +323,14 @@ for s = 1:length(dbpaths)
     sub_md = metadata; clear metadata
     
     dbt(i).SubjectId = filter_data(sub_md.subjectId, 'nominal', label_empty);
+    switch dbt(i).SubjectId
+        case 'VA-14-91'
+            dbt(i).SubjectId = 'VA14-91';
+        case 'VA 13-06'
+            dbt(i).SubjectId = 'VA13-06';
+        case 'VA-15-38'
+            dbt(i).SubjectId = 'Practice';
+    end
     dbt(i).Age = filter_data(sub_md.age, 'continuous', label_empty);        
     try dbt(i).Gender = filter_data(sub_md.gender.displayString, 'nominal', label_empty); catch, dbt(i).Gender = filter_data([], 'nominal', label_empty); end
     dbt(i).CauseOfDeath = filter_data(sub_md.causeOfDeath, 'nominal', label_empty);    
@@ -752,10 +766,6 @@ excel_data(1,1) = {'Subject Index'};
 for row = 2:length(excel_data)
     excel_data(row,1) = {find(~cellfun(@isempty, strfind(subject_names, excel_data{row,2})))};
 end
-
-excel_data(10,1) = {22};    % VA13-06: extra space in the SubjectId in the metadata (VA 13-06), so it doesn't find it
-excel_data(18,1) = {8};     % VA14-91: extra dash in the SubjectId in the metadata (VA-14-91), so it doesn't find it
-excel_data(26,1) = {30};    % VA15-38: extra dash in the SubjectId in the metadata (VA-15-38), so it doesn't find it
 
 %% Clean up the entries
 
