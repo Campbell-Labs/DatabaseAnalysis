@@ -14,7 +14,11 @@ end
 new_folder = [pre_name, datestr(now, 'yy-mm-dd-HH-MM-SS')];
 new_directory = fullfile(dump_directory, new_folder);
 
+scatter_directory = fullfile(new_directory, 'Scatter');
+boxplot_directory = fullfile(new_directory, 'BoxPlot');
 mkdir(new_directory)
+mkdir(scatter_directory)
+mkdir(boxplot_directory)
 
 polarization_names = regexp(polarization_names, [pre_match, '.*'], 'match');
 polarization_names = polarization_names(~cellfun('isempty',polarization_names));
@@ -30,10 +34,11 @@ for polarization_prop = polarization_names'
         g_values(:, diag_index) = diag_index;
     end
     gscatter(x_values(:), values(:), g_values(:));
-    xlabel('Subject Number');
+    xlabel('Deposits');
     title(strrep(polarization_str,'_',' '));
     legend(diagnosis);
-    print([new_directory, '\Scatter_', polarization_str ],'-dpng')
+    print([scatter_directory, '\Scatter_', polarization_str ],'-dpng')
+    close
     h = boxplot(values, 'Labels', diagnosis);
     title(strrep(polarization_str,'_',' '));
 %%% 
@@ -42,5 +47,6 @@ set( gca                       , ...
 'XDir','reverse');
 %%%
     
-    print([new_directory, '\BoxPlot_', polarization_str ],'-dpng')
+    print([boxplot_directory, '\BoxPlot_', polarization_str ],'-dpng')
+    close
 end

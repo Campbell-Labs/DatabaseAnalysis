@@ -1,5 +1,5 @@
-function [ comparison_struct, diag_struct, comparisons , polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values, mid_match)
+function [ comparison_struct, diag_struct , polarization_names_full, p_ANOVA_all] = ...
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values, mid_match, directory)
 %DepositCompare - Compares Deposits/Background data
 %   Given databases made with FilterData it will take the
 %   appropriate properties it will create ttests between each of the 
@@ -17,8 +17,10 @@ function [ comparison_struct, diag_struct, comparisons , polarization_names_full
 %       diag_struct = A structure holding the different diagnoisises
 %       comparisons = A list of the comparisons ran
 %       polarization_names_full = Names of all polarization properties run
+ANOVA_dir = fullfile(directory, 'ANOVA');
+mkdir(ANOVA_dir)
 
-column_names = dbts.(diagnosis{1}).Properties.VariableNames;
+column_names = dbts(1).table.Properties.VariableNames;
 if mid_match
     regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
 else
@@ -68,11 +70,11 @@ end
     %% Making a data array to pull from later, and create the calculated arrays as well
     og_height = length(polarization_properties.name);
     calculated_height = length(calculated_names);
-    data_width = length(diagnosis);
+    data_width = length(dbts);
     data_array = zeros(og_height + calculated_height, data_width, num_of_deposits);
     for i = 1:og_height
         for j = 1:data_width
-            data_array(i,j,:) =  dbts.(char(diagnosis(j))).(char(polarization_properties.name(i)));
+            data_array(i,j,:) =  dbts(j).table.(char(polarization_properties.name(i)));
         end
     end
     for i = 1:calculated_height
@@ -103,45 +105,43 @@ table_height = length(polarization_names_full);
 
 p_ANOVA_all = zeros(1, table_height);
 
-properties = {'mean', 'median', 'std', 'values', 'props'};
+properties = {'mean', 'median', 'std', 'data'};
 
 %comparisons_values = {'p', 'h', 'normal'};
 
-% Comparing all three diagnoises and creating those labels
+%% Comparing all three diagnoises and creating those labels
 
-comparing = {{diagnosis{1},diagnosis{2}},...
-            {diagnosis{1},diagnosis{3}},...
-            {diagnosis{2},diagnosis{3}}};
+compare_index = combnk(1:length(diagnosis),2);
+[comparing, comparisons] = deal(cell(length(compare_index),1));
 
-comparisons = {[comparing{1}{1},'v',comparing{1}{2}],...
-               [comparing{2}{1},'v',comparing{2}{2}],...
-               [comparing{3}{1},'v',comparing{3}{2}]};
-           
-prop_3_way = {'ANOVA'};
+for i = 1:length(compare_index)
+    comparing{i} = {diagnosis(compare_index(i,1)), diagnosis(compare_index(i,2))};
+    comparisons{i} = strcat(comparing{i}{1},'v',comparing{i}{2});
+end 
 
-%Just initalizing structres and arrays of zeros
+comparison_struct = struct('name',comparisons, ...
+                           'indices', num2cell(compare_index,2),...
+                           'elements', comparing);
+prop_all_way = {'ANOVA'};
+
+%% Just initalizing structres and arrays of zeros
+diag_struct = struct('name', diagnosis);
 for j = 1:length(diagnosis);
-    diag_struct.(char(diagnosis(j))) = struct();
     for i = 1:length(properties);
-        if strcmp(properties(i), 'values'); dealer = cell(table_height,1);
-        elseif strcmp(properties(i), 'props'); dealer = zeros(table_height,num_of_deposits);
+        if strcmp(properties(i), 'props'); dealer = cell(table_height,1);
+        elseif strcmp(properties(i), 'data'); dealer = zeros(table_height,num_of_deposits);
         else dealer = zeros(table_height,1);
         end
-        diag_struct.(char(diagnosis(j))).(char(properties(i))) = deal(dealer);
+        diag_struct(j).(char(properties(i))) = deal(dealer);
     end
 end
-
-for j = 1:length(comparisons)
-     comparison_struct.(char(comparisons(j))) = struct();
-     for i = 1:length(comparisons_values);
-        comparison_struct.(char(comparisons(j))).(char(comparisons_values(i))) =  deal(zeros(table_height,1));
-     end
-     comparison_struct.(char(comparisons(j))).('comparing') = comparing{j};
+for j = 1:length(comparisons_values)
+    [comparison_struct(:).(char(comparisons_values(j)))] = deal(zeros(table_height,1));
 end
-
 % This just pushes the data which was in structures into analysis and
 % saves them back into structures. It looks a bit messy but means its very
 % simple to add in new calculations and print them out if needs be.
+
 for index = 1:table_height;
     polarization_property = char(polarization_names_full(index));
     is_deposit = any(regexp(polarization_property,'(Deposit)\w+'));
@@ -151,67 +151,62 @@ for index = 1:table_height;
         % This section replaces the control deposit field with it's
         % respective background signal, as the control will not have a
         % deposit...
-        if strcmp(diagnosis_str,diagnosis{3}) && is_deposit;
-            try data = dbts.(diagnosis_str).(strrep(polarization_property,'Deposit','Background'));
-            catch
-            end
-        end
-        diag_struct.(diagnosis_str).('prop')(index,:) = data;
-        diag_struct.(diagnosis_str).('mean')(index) = mean(data);
-        diag_struct.(diagnosis_str).('median')(index) = median(data);
-        diag_struct.(diagnosis_str).('std')(index) = std(data);
-        diag_struct.(diagnosis_str).('values')(index) = num2cell(data,1);
+%         if strcmp(diagnosis_str,diagnosis{3}) && is_deposit;
+%             try data = dbts(1).(strrep(polarization_property,'Deposit','Background'));
+%             catch
+%             end
+%         end
+        diag_struct(dig_index).data(index,:) = data;
+        diag_struct(dig_index).mean(index) = mean(data);
+        diag_struct(dig_index).median(index) = median(data);
+        diag_struct(dig_index).std(index) = std(data);
+%        diag_struct(dig_index).values(index) = num2cell(data,1);
+        
         % Here the calculations of the properties based off of diagnosis
         % sorted data is done, like the mean value of the AD deposits
     end
-    for comp_index = 1:length(comparisons)
-        comparison = char(comparisons(comp_index));
-        prop_1 = diag_struct.(comparison_struct.(comparison).comparing{1}).prop(index,:);
-        prop_2 = diag_struct.(comparison_struct.(comparison).comparing{2}).prop(index,:);
-        [comparison_struct.(comparison).h_paired(index), ... 
-         comparison_struct.(comparison).p_paired(index), ... 
-         comparison_struct.(comparison).normal_paired(index)...
+    for comp_index = 1:length(comparison_struct)
+        prop_1 = diag_struct(comparison_struct(comp_index).indices(1)).data(index,:);
+        prop_2 = diag_struct(comparison_struct(comp_index).indices(2)).data(index,:);
+        [comparison_struct(comp_index).h_paired(index), ... 
+         comparison_struct(comp_index).p_paired(index), ... 
+         comparison_struct(comp_index).normal_paired(index)...
          ] = CompareData(prop_1, prop_2, 1);
         % Here are the calculations for comparing data sets lie. Right
         % now all that is done is to run the compare data function
-        [comparison_struct.(comparison).h_unpaired(index), ... 
-         comparison_struct.(comparison).p_unpaired(index), ... 
-         comparison_struct.(comparison).normal_unpaired(index)...
+        [comparison_struct(comp_index).h_unpaired(index), ... 
+         comparison_struct(comp_index).p_unpaired(index), ... 
+         comparison_struct(comp_index).normal_unpaired(index)...
          ] = CompareData(prop_1, prop_2, 0);
-     %% This is the graphing section for good paired data
-     try
-         graph_paired = 0;
-         if strcmp(comparison, 'ADvPC') && comparison_struct.(comparison).h_paired(index) && graph_paired
-             figure
-             property_array = zeros(length(prop_1), length(diagnosis));
-             for k = 1:length(diagnosis)
-                 diag = char(diagnosis(k));
-                 property_array(:,k) = diag_struct.(diag).prop(index,:);
-             end
-             for j = 1:length(property_array)
-                 plot(1:3,property_array(j,:), 'b' ); hold on
-                 title([strrep(polarization_property, '_', ' ') ,' p: ', num2str(comparison_struct.(comparison).p_paired(index))]);
-             end
-         end
-     catch
-     end
      %%
      try
-         comparison_ANOVA = anova1([prop_1;prop_2], 'off');
+         comparison_ANOVA = anova1([prop_1;prop_2]',[], 'off');
      catch
-         comparison_ANOVA = NaN(2,1);
+         comparison_ANOVA = NaN;
      end
-     comparison_struct.(comparison).p_ANOVA(index) = comparison_ANOVA(2);
+     comparison_struct(comp_index).p_ANOVA(index) = comparison_ANOVA;
      % Should add in groupings to tell diff between different subjects
      % as we have that grouping data.
     end
-    %% trying to do ANOVA with the three groups
-    ANOVA_values = zeros(num_of_deposits, length(diagnosis));
-    for i = 1:length(diagnosis)
-        ANOVA_values(:,i) = diag_struct.(diagnosis{i}).values{index};
+    %% trying to do ANOVA with the all groups
+    ANOVA_values = zeros(num_of_deposits, length(diag_struct));
+    for i = length(diag_struct):-1:1
+        ANOVA_values(:,i) = diag_struct(i).data(index,:);
     end
-    p_ANOVA_all(:, index) = anova1(ANOVA_values, diagnosis, 'off');
+    [p_ANOVA_all(:, index), tbl] = anova1(ANOVA_values, fliplr(diagnosis), 'on');
+    
+    % Saving ANOVA data to file here
+    fileID = fopen([ANOVA_dir, '\ANOVA_data_', polarization_property,'.txt'],'w');
+    
+    formatSpec = '%s \t %1.5f \t %u \t %1.5f \t %1.2f \t %1.2f \n';
+    [nrows,ncols] = size(tbl);
+    fprintf(fileID,'%s \t\t %s \t\t %s \t\t %s \t\t %s \t\t %s \n',tbl{1,:});
+    for row = 2:nrows
+        fprintf(fileID,formatSpec,tbl{row,:});
+    end
+    title(strrep(polarization_property,'_',' '));
+    print([ANOVA_dir, '\ANOVA_', polarization_property ],'-dpng')
+    close all
 end
-
 end
 

@@ -1,34 +1,34 @@
-function DataPrint(comparison_struct, diag_struct, table_name, compare_3_way, diag_print_to_table, ...
-    comp_print_to_table , diagnosis, comparisons, polarization_names_full, directory, ANOVA)
+function DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, ...
+    comp_print_to_table , diagnosis, polarization_names_full, directory, ANOVA)
 %DataPrint Function which prints out the tables inputted into a csv
 %   Detailed explanation goes here
 
 comparison_table = table();
 
-table_height = length(comparison_struct.(comparisons{1}).(comp_print_to_table{1}));
+table_height = length(comparison_struct(1).(comp_print_to_table{1}));
 
-for i = 1:length(compare_3_way);
-    compare3_str = char(compare_3_way(i));
-    data = zeros(3,table_height);
+for i = 1:length(compare_all_way);
+    compareall_str = char(compare_all_way(i));
+    data = zeros(length(diagnosis),table_height);
     middle_names = cell(table_height,1);
     for j = 1:3;
-        data(j,:) = diag_struct.(char(diagnosis(j))).(compare3_str);
+        data(j,:) = diag_struct(j).(compareall_str);
     end
     for k = 1:table_height
         [~, indicies] = sort(data(:,k));
-        middle_names(k,1) = diagnosis(indicies(2));
+        middle_names(k,1) = diagnosis(indicies(ceil(length(diagnosis)/2)));
     end
-    comparison_table.(['middle_',compare3_str]) = middle_names;
+    comparison_table.(['middle_',compareall_str]) = middle_names;
 end
 
 comparison_table.ANOVA_all_way = ANOVA';
 
-for j = 1:length(comparisons);
-    comp = char(comparisons(j));
+for j = 1:length(comparison_struct);
+    comp = char(comparison_struct(j).name);
     for i = 1:length(comp_print_to_table);
         comp_val = char(comp_print_to_table(i));
         name = [comp, '_', comp_val];
-        comparison_table.(name) = comparison_struct.(comp).(comp_val);
+        comparison_table.(name) = comparison_struct(j).(comp_val);
     end
 end
 
@@ -37,7 +37,7 @@ for i = 1:length(diag_print_to_table)
     for j = 1:length(diagnosis)
         diag = char(diagnosis(j));
         name = [diag, '_', diag_val];
-        comparison_table.(name) = diag_struct.(diag).(diag_val);
+        comparison_table.(name) = diag_struct(j).(diag_val);
     end
 end
 

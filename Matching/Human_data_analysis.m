@@ -1,8 +1,6 @@
-function null = Human_data_analysis()
-%Creating a dummy function so I can create subfunctions later on
-null = NaN;
+addpath(genpath('helpers'))
 
-load('Human Ex Vivo - Database Table (Generated 18-02-13)')
+load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-02-13)'))
 
 dbt_s = dbt(dbt.IsNewSubject,:);
 dbt_e = dbt(dbt.IsNewEye,:);
@@ -24,7 +22,7 @@ VA_subjects = all_subjects(VA_s_bool); % This just gives is only the VA subject 
 
 table_name = 'post_AAIC_data_';
 
-% These should correlate with High, Intermediate and Low/None
+% These should correlate with High, Intermediate, Low and None
 
 diagnosis = {'HIGH', 'INT', 'LOW', 'NONE' }; % Note that the third property is always the ratioed property
 
@@ -35,7 +33,7 @@ post_match = '(Mean|Size)';
 match_properties = {'Diattenuation_Circ','DP_','Psi', 'Retardance_Circ',...
 'Polarizance_Circ','Polarizance_Lin'};
 
-diag_print_to_table = {'mean', 'median', 'std', 'values'};
+diag_print_to_table = {'mean', 'median', 'std', 'data'};
 comp_print_to_table = {'h_paired','p_paired','normal_paired',...
     'h_unpaired','p_unpaired','normal_unpaired',...
     'p_ANOVA'...
@@ -52,24 +50,24 @@ mid_match = [mid_match,')'];
 % 
 % post_match = [mid_match,'.*', end_match];
 
-%% Reject some garbage data
-reject_bool = dbt_VA.SubjectId == 'VA15-14' ;
-dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
+% %% Reject some garbage data
+% reject_bool = dbt_VA.SubjectId == 'VA15-14' ;
+% dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
 
 %% Unrejecting Subject with only dust and particulate measured, for
 % background images, since we can segment this out, low deposits will not
 % be accurate though
 un_reject_bool = dbt_VA.SubjectId == 'VA14-105';
 dbt_VA(un_reject_bool,:).SessionRejected = categorical(zeros(sum(un_reject_bool),1));
-
-%% Changing diagnoisis of subject which was improperly labelled on import 
-% Pretty messy, but converting in and out of categorical seems non-trivial
-mislabelled_diagnosis_bool = ...dbt_VA.SubjectId == 'VA12-55';
-(dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
-%low or none too?
-replace_array = categorical(zeros(sum(mislabelled_diagnosis_bool),1), [0, 1, 2, 3,4], categories(dbt_VA.Likelihood_of_AD), 'Ordinal', true);
-replace_array(:) = 'low';
-dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
+% 
+% %% Changing diagnoisis of subject which was improperly labelled on import 
+% % Pretty messy, but converting in and out of categorical seems non-trivial
+% mislabelled_diagnosis_bool = ...dbt_VA.SubjectId == 'VA12-55';
+% (dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
+% %low or none too?
+% replace_array = categorical(zeros(sum(mislabelled_diagnosis_bool),1), [0, 1, 2, 3,4], categories(dbt_VA.Likelihood_of_AD), 'Ordinal', true);
+% replace_array(:) = 'low';
+% dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
 %% Here I will split up the three groups
 all_subjects = cellstr(dbt_s.SubjectId);
 
@@ -102,28 +100,17 @@ tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_LO, dbt_VA_NONE};
 [pairing_list, paired_tables] = pairing_function(diagnosis, tables);
 
 %% Values now are paired as stated in paired list
+dbts = struct('name', diagnosis, 'table', paired_tables);
 
-dbt_VA_HI = paired_tables{1};
-dbt_VA_INT = paired_tables{2};
-dbt_VA_LO = paired_tables{3};
-dbt_VA_NONE = paired_tables{4};
-
-dbts = struct(diagnosis{1}, dbt_VA_HI, ...
-              diagnosis{2},dbt_VA_INT, ...
-              diagnosis{3}, dbt_VA_LO, ...
-              diagnosis{4}, dbt_VA_NONE);
 %% Print Data
 num_of_deposits = length(pairing_list(:,1));
-[comparison_struct, diag_struct, comparisons, polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match);
 
-out_path = DataGraph(dbts, diagnosis, polarization_names_full, pre_match);
+polarization_properties = column_names(~cellfun(@isempty,regexp(column_names, [pre_match,'.*',mid_match ,'.*', post_match])));
+close all
 
-DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, comp_print_to_table ,diagnosis, comparisons, polarization_names_full, out_path, p_ANOVA_all) 
+out_path = DataGraph(dbts, diagnosis, polarization_properties, pre_match);
 
-%% run in debug and breakpoint here.
-disp('done')
+[comparison_struct, diag_struct, polarization_names_full, p_ANOVA_all] = ...
+    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match,out_path);
 
-function [matched_table, matched_bool] = match_table_regex(table, regex, field)
-    matched_bool = ~cellfun(@isempty,regexp(cellstr(table.(field)),regex));
-    matched_table = table(matched_bool,:);
+DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, comp_print_to_table ,diagnosis, polarization_names_full, out_path, p_ANOVA_all) 
