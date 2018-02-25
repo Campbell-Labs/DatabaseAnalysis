@@ -1,6 +1,6 @@
 addpath(genpath('helpers'))
 
-load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-02-13)'))
+load(fullfile(pwd,'database_tables','AREAS Human Ex Vivo - Database Table (Generated 18-02-13)'))
 
 dbt_s = dbt(dbt.IsNewSubject,:);
 dbt_e = dbt(dbt.IsNewEye,:);
@@ -20,11 +20,13 @@ VA_subjects = all_subjects(VA_s_bool); % This just gives is only the VA subject 
 
 %% User entry
 
-table_name = 'post_AAIC_data_';
+table_name = 'post_AAIC_data';
 
 % These should correlate with High, Intermediate, Low and None
 
-diagnosis = {'HIGH', 'INT', 'LOW', 'NONE' }; % Note that the third property is always the ratioed property
+%diagnosis = {'HIGH', 'INT', 'LOW', 'NONE' }; % Note that the third property is always the ratioed property
+
+diagnosis = {'HIGH', 'INT', 'NONE' }; % Note that the third property is always the ratioed property
 
 pre_match = '(?:Deposit|Background)';
 
@@ -47,6 +49,12 @@ for i = 2:length(match_properties)
     mid_match = [mid_match,'|', match_properties{i}];
 end
 mid_match = [mid_match,')'];
+%calculate some properties to use later
+column_names = dbt_VA.Properties.VariableNames;
+regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
+polarization_properties = column_names(~cellfun(@isempty,regexp(column_names, regex_matcher)));
+
+dbt_VA = reject_bad(dbt_VA, polarization_properties);
 % 
 % post_match = [mid_match,'.*', end_match];
 
@@ -54,11 +62,12 @@ mid_match = [mid_match,')'];
 % reject_bool = dbt_VA.SubjectId == 'VA15-14' ;
 % dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
 
-%% Unrejecting Subject with only dust and particulate measured, for
-% background images, since we can segment this out, low deposits will not
-% be accurate though
-un_reject_bool = dbt_VA.SubjectId == 'VA14-105';
-dbt_VA(un_reject_bool,:).SessionRejected = categorical(zeros(sum(un_reject_bool),1));
+% %% Unrejecting Subject:
+% % Subject with only dust and particulate measured, for the
+% % background images, since we can segment this out, low deposits will not
+% % be accurate though
+% un_reject_bool = dbt_VA.SubjectId == 'VA14-105';
+% dbt_VA(un_reject_bool,:).NewRejected = zeros(sum(un_reject_bool),1);
 % 
 % %% Changing diagnoisis of subject which was improperly labelled on import 
 % % Pretty messy, but converting in and out of categorical seems non-trivial
@@ -71,8 +80,10 @@ dbt_VA(un_reject_bool,:).SessionRejected = categorical(zeros(sum(un_reject_bool)
 %% Here I will split up the three groups
 all_subjects = cellstr(dbt_s.SubjectId);
 
+% Convert NaN's into rejected
+dbt_VA.NewRejected(isnan(dbt_VA.NewRejected)) = 1;
 
-dbt_VA = dbt_VA(dbt_VA.SessionRejected == '0', :); % Dont know how to convert out of categorical data
+dbt_VA = dbt_VA(~dbt_VA.NewRejected, :); % Dont know how to convert out of categorical data
 %dbt_VA = dbt_VA(dbt_VA.QuarterArbitrary == '0', :);
 dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
 
@@ -96,21 +107,20 @@ dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Erik''s Program' ,'RegistrationType'
 % dbt_VA_INT = dbt_VA_INT(dbt_VA_INT.SubjectIdx >30, :);
 
 %% Here I will match the locations of the deposits to send to DataCompare
-tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_LO, dbt_VA_NONE};
+%tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_LO, dbt_VA_NONE};
+tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_NONE};
 [pairing_list, paired_tables] = pairing_function(diagnosis, tables);
 
 %% Values now are paired as stated in paired list
 dbts = struct('name', diagnosis, 'table', paired_tables);
 
-%% Print Data
+% Just getting some table properties
 num_of_deposits = length(pairing_list(:,1));
 
-polarization_properties = column_names(~cellfun(@isempty,regexp(column_names, [pre_match,'.*',mid_match ,'.*', post_match])));
-close all
-
+%% Print Data
 out_path = DataGraph(dbts, diagnosis, polarization_properties, pre_match);
 
 [comparison_struct, diag_struct, polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comp_print_to_table, mid_match,out_path);
+    DepositCompare( dbts, comp_print_to_table, pre_match, post_match, mid_match, out_path);
 
 DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, comp_print_to_table ,diagnosis, polarization_names_full, out_path, p_ANOVA_all) 

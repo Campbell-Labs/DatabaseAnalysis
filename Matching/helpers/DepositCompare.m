@@ -1,5 +1,5 @@
 function [ comparison_struct, diag_struct , polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, num_of_deposits, diagnosis, pre_match, post_match, comparisons_values, mid_match, directory)
+    DepositCompare( dbts, comparisons_values, pre_match, post_match, mid_match, directory)
 %DepositCompare - Compares Deposits/Background data
 %   Given databases made with FilterData it will take the
 %   appropriate properties it will create ttests between each of the 
@@ -20,12 +20,17 @@ function [ comparison_struct, diag_struct , polarization_names_full, p_ANOVA_all
 ANOVA_dir = fullfile(directory, 'ANOVA');
 mkdir(ANOVA_dir)
 
-column_names = dbts(1).table.Properties.VariableNames;
 if mid_match
     regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
 else
     regex_matcher = [pre_match, '.*', post_match];
-end
+end    
+
+diagnosis = {dbts.name};
+num_of_deposits = height(dbts(1).table);
+
+column_names = dbts(1).table.Properties.VariableNames;
+
 pol_prop = ~cellfun(@isempty,regexp(column_names, regex_matcher));
 polarization_properties.name = column_names(pol_prop);
 polarization_properties.is_deposit = ~cellfun(@isempty,regexp(polarization_properties.name,...
