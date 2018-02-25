@@ -78,33 +78,18 @@ dbt_VA = reject_bad(dbt_VA, polarization_properties);
 % replace_array(:) = 'low';
 % dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
 %% Here I will split up the three groups
-all_subjects = cellstr(dbt_s.SubjectId);
 
 % Convert NaN's into rejected
 dbt_VA.NewRejected(isnan(dbt_VA.NewRejected)) = 1;
-
 dbt_VA = dbt_VA(~dbt_VA.NewRejected, :); % Dont know how to convert out of categorical data
-%dbt_VA = dbt_VA(dbt_VA.QuarterArbitrary == '0', :);
+
+dbt_VA = dbt_VA(dbt_VA.QuarterArbitrary == '0', :);
 dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
 
 dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
 dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
 dbt_VA_LO = match_table_regex(dbt_VA, ['low', '.*'] , 'Likelihood_of_AD');
 dbt_VA_NONE = match_table_regex(dbt_VA, ['none', '.*'] , 'Likelihood_of_AD');
-
-dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Good' ,'SegmentationQuality');
-dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Good' ,'SegmentationQuality');
-
-%dbt_VA_INT = dbt_VA_INT(logical(dbt_VA_INT.DepositSize > 500), :);
-
-%dbt_VA_HI = dbt_VA_HI(logical(dbt_VA_HI.SubjectIdx > 30), :);
-
-dbt_VA_HI = match_table_regex(dbt_VA_HI, 'Erik''s Program' ,'RegistrationType');
-dbt_VA_INT = match_table_regex(dbt_VA_INT, 'Erik''s Program' ,'RegistrationType');
-
-% % This is the section to limit only to after the automatic stage
-% dbt_VA_HI = dbt_VA_HI(dbt_VA_HI.SubjectIdx >30, :);
-% dbt_VA_INT = dbt_VA_INT(dbt_VA_INT.SubjectIdx >30, :);
 
 %% Here I will match the locations of the deposits to send to DataCompare
 %tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_LO, dbt_VA_NONE};

@@ -25,8 +25,8 @@ polarization_names = polarization_names(~cellfun('isempty',polarization_names));
 
 samples = height(dbts(1).table);
 x = 1:samples;
-for polarization_prop = polarization_names'
-    polarization_str = char(polarization_prop{1});
+for pol_prop_index = 1:length(polarization_names)
+    polarization_str = char(polarization_names{pol_prop_index});
     [values, x_values, g_values] = deal(zeros(samples, 3));
     for diag_index = length(diagnosis):-1:1
         values(:, diag_index) = dbts(diag_index).table.(polarization_str);
