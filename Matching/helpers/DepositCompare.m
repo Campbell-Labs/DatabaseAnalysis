@@ -1,5 +1,5 @@
-function [ comparison_struct, diag_struct , polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, comparisons_values, pre_match, post_match, mid_match, directory)
+function [ comparison_struct, diag_struct , polarization_properties, p_ANOVA_all] = ...
+    DepositCompare( dbts, comparisons_values, pre_match, post_match, mid_match, ratio_bool, subtraction_bool, directory)
 %DepositCompare - Compares Deposits/Background data
 %   Given databases made with FilterData it will take the
 %   appropriate properties it will create ttests between each of the 
@@ -32,29 +32,42 @@ num_of_deposits = height(dbts(1).table);
 column_names = dbts(1).table.Properties.VariableNames;
 
 pol_prop = ~cellfun(@isempty,regexp(column_names, regex_matcher));
-polarization_properties.name = column_names(pol_prop);
-polarization_properties.is_deposit = ~cellfun(@isempty,regexp(polarization_properties.name,...
-    '(?:Deposit).*'));
-split_name = cellfun(@(c) strrep(c{1,2}, '_', ''), ...
-    regexp(polarization_properties.name,pre_match, 'split'), 'UniformOutput',false);
+polarization_properties = struct('name',column_names(pol_prop));
+
+is_deposit = num2cell(~cellfun(@isempty,regexp({polarization_properties.name},'(?:Deposit).*'))');
+[polarization_properties(:).is_deposit] = is_deposit{:};
+split_name = regexp({polarization_properties.name},pre_match, 'split');
+split_name = vertcat(split_name{:});
+split_name = split_name(~cellfun('isempty',split_name));
 [match_array, split_array] = regexp(split_name, post_match, 'match','split');
 
-polarization_properties.type = cellfun(@(c) c{1},match_array ,'UniformOutput',false);
-polarization_properties.property = cellfun(@(c) c{1,1},split_array ,'UniformOutput',false);
+% Pulling first cell within each cell, solution may be inoptimal
+split_array_org = vertcat(split_array{:});
+split_array_org = split_array_org(:,1);
 
-%% Attempting to make a calculated data fields
-fields = {'Ratio', 'Subtraction'};
+[polarization_properties(:).type] = match_array{:};
+[polarization_properties(:).property] = split_array_org{:};
+
+%% Make a calculated data fields, if they exist
+fields = {};
+if ratio_bool
+    fields{length(fields) + 1} = 'Ratio';
+end
+if subtraction_bool
+    fields{length(fields) + 1} = 'Subtraction';
+end
+
 calculated_names = [];
 calculated_indicies = [];
 calculated_type = [];
-for index = 1:length(polarization_properties.name);
-    if polarization_properties.is_deposit(index)
-        search_name = polarization_properties.property(index);
-        search_type = polarization_properties.type(index);
-        for j = 1:length(polarization_properties.name);
-            if ~polarization_properties.is_deposit(j) && ...
-                    strcmp(polarization_properties.property(j),search_name) && ...
-                    strcmp(polarization_properties.type(j),search_type)
+for index = 1:length(polarization_properties);
+    if polarization_properties(index).is_deposit
+        search_name = polarization_properties(index).property;
+        search_type = polarization_properties(index).type;
+        for j = 1:length(polarization_properties);
+            if ~polarization_properties(j).is_deposit && ...
+                    strcmp(polarization_properties(j).property,search_name) && ...
+                    strcmp(polarization_properties(j).type,search_type)
                 for i = 1:length(fields);
                     field = fields(i);
                     calculated_names = [calculated_names; {[char(field{1}),'_',char(search_name),char(search_type)]}];
@@ -73,13 +86,13 @@ end
 %    ];
 
     %% Making a data array to pull from later, and create the calculated arrays as well
-    og_height = length(polarization_properties.name);
+    og_height = length(polarization_properties);
     calculated_height = length(calculated_names);
     data_width = length(dbts);
     data_array = zeros(og_height + calculated_height, data_width, num_of_deposits);
     for i = 1:og_height
         for j = 1:data_width
-            data_array(i,j,:) =  dbts(j).table.(char(polarization_properties.name(i)));
+            data_array(i,j,:) =  dbts(j).table.(char(polarization_properties(i).name));
         end
     end
     for i = 1:calculated_height
@@ -90,6 +103,7 @@ end
             background_data = data_array(calculated_i(2),:,:);
             type_2conv = calculated_type(i);
             type = char(type_2conv{1});
+            %Here is where new calculated data fields would be added
             if strcmp(type, 'Ratio');
                 data = deposit_data./background_data;
             elseif strcmp(type, 'Subtraction')
@@ -105,7 +119,7 @@ end
     
 % This section is just some uninteresting data management, creating the
 % data structures and initalizing arrays for all of them
-polarization_names_full = [polarization_properties.name'; calculated_names];
+polarization_names_full = [{polarization_properties(:).name}'; calculated_names];
 table_height = length(polarization_names_full);
 
 p_ANOVA_all = zeros(1, table_height);
@@ -209,6 +223,7 @@ for index = 1:table_height;
     for row = 2:nrows
         fprintf(fileID,formatSpec,tbl{row,:});
     end
+    fclose(fileID);
     title(strrep(polarization_property,'_',' '));
     print([ANOVA_dir, '\ANOVA_', polarization_property ],'-dpng')
     close all

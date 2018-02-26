@@ -1,47 +1,55 @@
-addpath(genpath('helpers'))
-
+%% User Entry Section
+%Choose your database file
 load(fullfile(pwd,'database_tables','AREAS Human Ex Vivo - Database Table (Generated 18-02-13)'))
+%What will the outputted data file be
+folder_name = 'post_AAIC_data';
 
-dbt_s = dbt(dbt.IsNewSubject,:);
-dbt_e = dbt(dbt.IsNewEye,:);
-dbt_q = dbt(dbt.IsNewQuarter,:);
+% Which diagnosises will be compared
+% Options to choose are High, Intermediate, Low and None
+diagnosis = {'High', 'Intermediate', 'None' }; 
+% Note that the last property is the ratioed/subtracted property (control)
 
-%% First just reducing the databases to only include VA subjects
-VA_regex = ['VA', '.*'];
-
-all_subjects = cellstr(dbt_s.SubjectId);
-
-[dbt_VA_s, VA_s_bool] = match_table_regex(dbt_s, VA_regex ,'SubjectId');
-dbt_VA_e = match_table_regex(dbt_e, VA_regex ,'SubjectId');
-dbt_VA_q = match_table_regex(dbt_q, VA_regex ,'SubjectId');
-dbt_VA = match_table_regex(dbt, VA_regex ,'SubjectId');
-
-VA_subjects = all_subjects(VA_s_bool); % This just gives is only the VA subject names
-
-%% User entry
-
-table_name = 'post_AAIC_data';
-
-% These should correlate with High, Intermediate, Low and None
-
-%diagnosis = {'HIGH', 'INT', 'LOW', 'NONE' }; % Note that the third property is always the ratioed property
-
-diagnosis = {'HIGH', 'INT', 'NONE' }; % Note that the third property is always the ratioed property
-
+%What should property string start with
 pre_match = '(?:Deposit|Background)';
+post_match = '(_Median|Size)'; % And what should it end with
 
-post_match = '(Mean|Size)';
+% What should be somewhere in the middle
+match_properties = {'Diattenuation_Circ','DP','Psi', 'Retardance_Circ',...
+                    'Polarizance_Circ','Polarizance_Lin'};
 
-match_properties = {'Diattenuation_Circ','DP_','Psi', 'Retardance_Circ',...
-'Polarizance_Circ','Polarizance_Lin'};
-
+% What should the outputted excel file be filled with
 diag_print_to_table = {'mean', 'median', 'std', 'data'};
 comp_print_to_table = {'h_paired','p_paired','normal_paired',...
-    'h_unpaired','p_unpaired','normal_unpaired',...
-    'p_ANOVA'...
-    };
-
+                       'h_unpaired','p_unpaired','normal_unpaired',...
+                       'p_ANOVA'...
+                        };
 compare_all_way = {'median'};
+
+%Bools to pick which calculated properties should be run
+ratio = false; %Divide by control
+subtraction = false; %Subtract control from data
+
+% Choose which database subjects to remove
+reject_nan = true; % This is to remove properties which have NaN in calculation
+remove_rejected = true; % This is to remove properties which are rejected
+remove_QuarterArbitrary = false; % This removes deposits which have been flagged as arbitrary quarters
+
+%% Script
+% First we pull in our helper functions to use later
+addpath(genpath('helpers'))
+
+% Find a database of only subjects, 
+%IsNewEye and IsNewQuarter can also be split out but are not here
+dbt_s = dbt(dbt.IsNewSubject,:);
+all_subjects = cellstr(dbt_s.SubjectId);
+
+%% First just reducing the databases to only include VA subjects
+% This regular expression simply finds those subjects called VA_###
+VA_regex = ['VA', '.*'];
+
+dbt_VA = match_table_regex(dbt, VA_regex ,'SubjectId');
+dbt_VA_s = match_table_regex(dbt_s, VA_regex ,'SubjectId');
+VA_subjects = cellstr(dbt_VA_s.SubjectId); % This just gives is only the VA subject names
 
 %% Management
 mid_match = ['.*(',match_properties{1}];
@@ -49,63 +57,31 @@ for i = 2:length(match_properties)
     mid_match = [mid_match,'|', match_properties{i}];
 end
 mid_match = [mid_match,')'];
+
 %calculate some properties to use later
 column_names = dbt_VA.Properties.VariableNames;
 regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
 polarization_properties = column_names(~cellfun(@isempty,regexp(column_names, regex_matcher)));
 
-dbt_VA = reject_bad(dbt_VA, polarization_properties);
-% 
-% post_match = [mid_match,'.*', end_match];
-
-% %% Reject some garbage data
-% reject_bool = dbt_VA.SubjectId == 'VA15-14' ;
-% dbt_VA(reject_bool,:).SessionRejected = categorical(ones(sum(reject_bool),1));
-
-% %% Unrejecting Subject:
-% % Subject with only dust and particulate measured, for the
-% % background images, since we can segment this out, low deposits will not
-% % be accurate though
-% un_reject_bool = dbt_VA.SubjectId == 'VA14-105';
-% dbt_VA(un_reject_bool,:).NewRejected = zeros(sum(un_reject_bool),1);
-% 
-% %% Changing diagnoisis of subject which was improperly labelled on import 
-% % Pretty messy, but converting in and out of categorical seems non-trivial
-% mislabelled_diagnosis_bool = ...dbt_VA.SubjectId == 'VA12-55';
-% (dbt_VA.SubjectId == 'VA12-55' | dbt_VA.SubjectId == 'VA15-41'); %rename
-% %low or none too?
-% replace_array = categorical(zeros(sum(mislabelled_diagnosis_bool),1), [0, 1, 2, 3,4], categories(dbt_VA.Likelihood_of_AD), 'Ordinal', true);
-% replace_array(:) = 'low';
-% dbt_VA(mislabelled_diagnosis_bool,:).Likelihood_of_AD = replace_array;
 %% Here I will split up the three groups
+dbt_VA = cleanup_database(dbt_VA, remove_rejected, remove_QuarterArbitrary, reject_nan, polarization_properties );
 
-% Convert NaN's into rejected
-dbt_VA.NewRejected(isnan(dbt_VA.NewRejected)) = 1;
-dbt_VA = dbt_VA(~dbt_VA.NewRejected, :); % Dont know how to convert out of categorical data
-
-dbt_VA = dbt_VA(dbt_VA.QuarterArbitrary == '0', :);
-dbt_VA = dbt_VA(dbt_VA.IsProcessed, :);
-
-dbt_VA_HI = match_table_regex(dbt_VA, ['high', '.*'] , 'Likelihood_of_AD');
-dbt_VA_INT = match_table_regex(dbt_VA, ['intermediate', '.*'] , 'Likelihood_of_AD');
-dbt_VA_LO = match_table_regex(dbt_VA, ['low', '.*'] , 'Likelihood_of_AD');
-dbt_VA_NONE = match_table_regex(dbt_VA, ['none', '.*'] , 'Likelihood_of_AD');
+% This uses the diagnosis as a regex and this regex matches the diagnosis
+tables = cell(1, length(diagnosis));
+for i = 1:length(diagnosis);
+    tables(1,i) = {match_table_regex(dbt_VA, [diagnosis{i}, '.*'] , 'Likelihood_of_AD');};
+end
 
 %% Here I will match the locations of the deposits to send to DataCompare
-%tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_LO, dbt_VA_NONE};
-tables = {dbt_VA_HI, dbt_VA_INT, dbt_VA_NONE};
 [pairing_list, paired_tables] = pairing_function(diagnosis, tables);
 
 %% Values now are paired as stated in paired list
 dbts = struct('name', diagnosis, 'table', paired_tables);
 
-% Just getting some table properties
-num_of_deposits = length(pairing_list(:,1));
+%% Print/Calculate Data
+out_path = DataGraph(dbts, polarization_properties, folder_name);
 
-%% Print Data
-out_path = DataGraph(dbts, diagnosis, polarization_properties, pre_match);
+[comparison_struct, diag_struct, polarization_properties_struct, p_ANOVA_all] = ...
+    DepositCompare( dbts, comp_print_to_table, pre_match, post_match, mid_match, ratio, subtraction, out_path);
 
-[comparison_struct, diag_struct, polarization_names_full, p_ANOVA_all] = ...
-    DepositCompare( dbts, comp_print_to_table, pre_match, post_match, mid_match, out_path);
-
-DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, comp_print_to_table ,diagnosis, polarization_names_full, out_path, p_ANOVA_all) 
+DataPrint(comparison_struct, diag_struct, folder_name, compare_all_way, diag_print_to_table, comp_print_to_table ,diagnosis, polarization_properties_struct, out_path, p_ANOVA_all) 

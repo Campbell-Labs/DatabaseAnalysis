@@ -1,5 +1,5 @@
 function DataPrint(comparison_struct, diag_struct, table_name, compare_all_way, diag_print_to_table, ...
-    comp_print_to_table , diagnosis, polarization_names_full, directory, ANOVA)
+    comp_print_to_table , diagnosis, properties_structure, directory, ANOVA)
 %DataPrint Function which prints out the tables inputted into a csv
 %   Detailed explanation goes here
 
@@ -41,7 +41,16 @@ for i = 1:length(diag_print_to_table)
     end
 end
 
-comparison_table.Properties.RowNames = polarization_names_full;
+
+element_type = cell(length(properties_structure),1);
+element_type([properties_structure(:).is_deposit]) = {'Deposit'};
+element_type(~[properties_structure(:).is_deposit]) = {'Background'};
+
+comparison_table.is_deposit = element_type;
+
+comparison_table.Properties.RowNames = {properties_structure(:).name};
+
+comparison_table = sortrows(comparison_table,'is_deposit');
 
 writetable(comparison_table, [directory, '\Comparison_Table_',table_name, datestr(now, 'yy-mm-dd-HH-MM-SS'), '.xlsx'],'WriteRowNames',true)
 
