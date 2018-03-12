@@ -1,4 +1,4 @@
-function [ dbt ] = cleanup_database(dbt, remove_rejected, remove_QuarterArbitrary, remove_nan, properties )
+function [ dbt ] = cleanup_database(dbt, remove_rejected, remove_QuarterArbitrary, remove_nan, properties, post_automated )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -18,7 +18,10 @@ end
 % It has to be processed to use calculated properties
 dbt = dbt(dbt.IsProcessed, :);
 
-
+%% Ensure it is post automated stage?
+if post_automated
+    dbt = dbt(dbt.SubjectIdx > 29, :);
+end
 %% Custom database management for fixing Human errors
 % %% Unrejecting Subject:
 % % Subject with only dust and particulate measured, for the

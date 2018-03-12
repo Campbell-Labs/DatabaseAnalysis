@@ -52,7 +52,8 @@ comparison_table.Properties.RowNames = {properties_structure(:).name};
 
 comparison_table = sortrows(comparison_table,'is_deposit');
 
-writetable(comparison_table, [directory, '\Comparison_Table_',table_name, datestr(now, 'yy-mm-dd-HH-MM-SS'), '.xlsx'],'WriteRowNames',true)
+% If you get an error here, it is likely a name length error
+writetable(comparison_table, [directory, '\Comparison_',table_name, datestr(now, 'yy-mm-dd-HH-MM-SS'), '.xlsx'],'WriteRowNames',true)
 
 end
 

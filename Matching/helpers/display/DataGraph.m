@@ -1,34 +1,32 @@
-function [ new_directory ] = DataGraph( dbts, polarization_names, pre_name, dump_directory)
+function [] = DataGraph( dbts, polarization_names, output_directory)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
-if exist( 'pre_name','var' ) == 0
-    pre_name = 'Data_Directory_';
-end
-
-if exist( 'dump_directory','var' ) == 0
-    dump_directory = fullfile(pwd, 'data_dump_folder');
-end
-
-%%First make a dump directory
-new_folder = [pre_name, datestr(now, 'yy-mm-dd-HH-MM-SS')];
-new_directory = fullfile(dump_directory, new_folder);
 % Inside that directory, the subdirectories of graphs
-scatter_directory = fullfile(new_directory, 'Scatter');
-boxplot_directory = fullfile(new_directory, 'BoxPlot');
-mkdir(new_directory)
+scatter_directory = fullfile(output_directory, 'Scatter');
+boxplot_directory = fullfile(output_directory, 'BoxPlot');
 mkdir(scatter_directory)
 mkdir(boxplot_directory)
 
-samples = height(dbts(1).table);
-x = 1:samples;
+%Find largest number of samples in subject
+%Pretty brute force approach
+max_samples = 0;
+for diag_index = 1:length(dbts)
+    local_max = height(dbts(diag_index).table);
+    if max_samples < local_max;
+        max_samples = local_max;
+    end
+end
+
 for pol_prop_index = 1:length(polarization_names)
     polarization_str = char(polarization_names{pol_prop_index});
-    [values, x_values, g_values] = deal(zeros(samples, 3));
+    [values, x_values, g_values] = deal(NaN(max_samples, 3));
     for diag_index = length(dbts):-1:1
-        values(:, diag_index) = dbts(diag_index).table.(polarization_str);
-        x_values(:, diag_index) = x;
-        g_values(:, diag_index) = diag_index;
+        samples = height(dbts(diag_index).table);
+        x = 1:samples;
+        values(1:samples, diag_index) = dbts(diag_index).table.(polarization_str);
+        x_values(1:samples, diag_index) = x;
+        g_values(1:samples, diag_index) = diag_index;
     end
     gscatter(x_values(:), values(:), g_values(:));
     xlabel('Deposits');

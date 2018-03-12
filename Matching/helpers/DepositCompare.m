@@ -6,7 +6,6 @@ function [ comparison_struct, diag_struct , polarization_properties, p_ANOVA_all
 %   diagnosis buckets.
 %   args:
 %       dbts = database table created by FilterData
-%       num_of_deposits = number of deposits, should be depreciated
 %       diagnosis = The names of the three groups.
 %       pre_match = Regex string to catch the begining of stings to choose
 %                   properties
@@ -27,7 +26,8 @@ else
 end    
 
 diagnosis = {dbts.name};
-num_of_deposits = height(dbts(1).table);
+largest_of_deposits = max(arrayfun(@(x) height(x.table),dbts));
+
 
 column_names = dbts(1).table.Properties.VariableNames;
 
@@ -89,10 +89,11 @@ end
     og_height = length(polarization_properties);
     calculated_height = length(calculated_names);
     data_width = length(dbts);
-    data_array = zeros(og_height + calculated_height, data_width, num_of_deposits);
+    data_array = NaN(og_height + calculated_height, data_width, largest_of_deposits);
     for i = 1:og_height
         for j = 1:data_width
-            data_array(i,j,:) =  dbts(j).table.(char(polarization_properties(i).name));
+            table_height = height(dbts(j).table);
+            data_array(i,j,1:table_height) =  dbts(j).table.(char(polarization_properties(i).name));
         end
     end
     for i = 1:calculated_height
@@ -148,7 +149,7 @@ diag_struct = struct('name', diagnosis);
 for j = 1:length(diagnosis);
     for i = 1:length(properties);
         if strcmp(properties(i), 'props'); dealer = cell(table_height,1);
-        elseif strcmp(properties(i), 'data'); dealer = zeros(table_height,num_of_deposits);
+        elseif strcmp(properties(i), 'data'); dealer = NaN(table_height,largest_of_deposits);
         else dealer = zeros(table_height,1);
         end
         diag_struct(j).(char(properties(i))) = deal(dealer);
@@ -176,6 +177,7 @@ for index = 1:table_height;
 %             end
 %         end
         diag_struct(dig_index).data(index,:) = data;
+        data(isnan(data)) = [];
         diag_struct(dig_index).mean(index) = mean(data);
         diag_struct(dig_index).median(index) = median(data);
         diag_struct(dig_index).std(index) = std(data);
@@ -208,7 +210,7 @@ for index = 1:table_height;
      % as we have that grouping data.
     end
     %% trying to do ANOVA with the all groups
-    ANOVA_values = zeros(num_of_deposits, length(diag_struct));
+    ANOVA_values = NaN(largest_of_deposits, length(diag_struct));
     for i = length(diag_struct):-1:1
         ANOVA_values(:,i) = diag_struct(i).data(index,:);
     end
@@ -230,36 +232,40 @@ for index = 1:table_height;
 end
 
 function [ h, p, normal ] = CompareData( x, y, paired)
-%CompareData Completes a comparison of data to check if data is
-%differentiable between subjects. We will complete different statsicial
-%studies based off if the data is normal or not or if the data is paired or
-%unpaired.
+    %CompareData Completes a comparison of data to check if data is
+    %differentiable between subjects. We will complete different statsicial
+    %studies based off if the data is normal or not or if the data is paired or
+    %unpaired.
 
-% First we should check if the datasets are normal
-if all(~isnan(x)) && all(~isnan(y));
-    x_h = kstest(x);
-    y_h = kstest(y);
-    normal = y_h && x_h;
-    
-    if paired %&& ~normal
-        [p,h] = signrank(x,y);    
-    end
-    
-%     if paired && normal
-%         [h,p] = ttest(x,y);    
-%     end
+    % First we should check if the datasets are normal
+    if paired 
+        if all(~isnan(x)) && all(~isnan(y));
+            x_h = kstest(x);
+            y_h = kstest(y);
+            normal = y_h && x_h;
+            [h,p] = signrank(x,y, 'method','exact');    
+        else
+            [p,h, normal] = deal(nan);
+        end
 
-    if ~paired && normal
-        [h,p] = ttest2(x,y);    
+    %     if paired && normal
+    %         [h,p] = ttest(x,y);    
+    %     end
+    else
+        x(isnan(x)) = [];
+        y(isnan(y)) = [];
+        x_h = kstest(x);
+        y_h = kstest(y);
+        normal = y_h && x_h;
+
+        if normal
+            [h,p] = ttest2(x,y, 'Vartype','unequal');    
+        else
+            [p, h] = ranksum(x,y);  
+        end
+
     end
 
-    if ~paired && ~normal
-        [p, h] = ranksum(x,y);  
-    end
-else
-    [p,h, normal] = deal(nan);
-    
-end
 end
 
 end
