@@ -7,8 +7,7 @@ if remove_nan;
 end
 
 if remove_rejected
-    dbt.NewRejected(isnan(dbt.NewRejected)) = 1; % Convert NaN's into rejected
-    dbt = dbt(~dbt.NewRejected, :);
+    dbt = dbt(dbt.NewRejected == '0', :);
 end
 
 if remove_QuarterArbitrary

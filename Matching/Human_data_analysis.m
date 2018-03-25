@@ -1,12 +1,13 @@
 %% User Entry Section
 %Choose your database file
-load(fullfile(pwd,'database_tables','AREAS Human Ex Vivo - Database Table (Generated 18-02-13)'))
+load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-03-22)'))
 %What will the outputted data file be
-folder_name = 'Post_AAIC';
+folder_name = '18-02-22_gen_test';
 
 % Which diagnosises will be compared
 % Options to choose are High, Intermediate, Low and None
 diagnosis = {'High', 'Intermediate', 'None' }; 
+diagnosis_type = 'Likelihood_of_AD';
 % Note that the last property is the ratioed/subtracted property (control)
 
 paired = false;
@@ -20,7 +21,7 @@ end
 print_graphs = true;
 
 %What should property string start with
-pre_match = '(?:Deposit|Background)';
+mid_match = '(Deposit|Background)';
 post_match = '(_Median|Size)'; % And what should it end with
 
 % What should be somewhere in the middle
@@ -67,15 +68,15 @@ dbt_VA_s = match_table_regex(dbt_s, VA_regex ,'SubjectId');
 VA_subjects = cellstr(dbt_VA_s.SubjectId); % This just gives is only the VA subject names
 
 %% Management
-mid_match = ['.*(',match_properties{1}];
+pre_match = ['.*(',match_properties{1}];
 for i = 2:length(match_properties)
-    mid_match = [mid_match,'|', match_properties{i}];
+    pre_match = [pre_match,'|', match_properties{i}];
 end
-mid_match = [mid_match,')'];
+pre_match = [pre_match,')'];
 
 plain_mid_match = ['.*(',plain_match{1}];
 for i = 2:length(plain_match);
-    plain_mid_match = [mid_match,'|', plain_match{i}];
+    plain_mid_match = [pre_match,'|', plain_match{i}];
 end
 plain_mid_match = [plain_mid_match,')'];
 
@@ -94,7 +95,7 @@ dbt_VA = cleanup_database(dbt_VA, remove_rejected, remove_QuarterArbitrary, ...
 % This uses the diagnosis as a regex and this regex matches the diagnosis
 tables = cell(1, length(diagnosis));
 for i = 1:length(diagnosis);
-    tables(1,i) = {match_table_regex(dbt_VA, [diagnosis{i}, '.*'] , 'Likelihood_of_AD');};
+    tables(1,i) = {match_table_regex(dbt_VA, [diagnosis{i}, '.*'] , diagnosis_type);};
 end
 
 if paired
