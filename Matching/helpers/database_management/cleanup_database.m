@@ -19,7 +19,7 @@ dbt = dbt(dbt.IsProcessed, :);
 
 %% Ensure it is post automated stage?
 if post_automated
-    dbt = dbt(dbt.SubjectIdx > 29, :);
+    dbt = dbt(dbt.SubjectIdx > 30, :);
 end
 %% Custom database management for fixing Human errors
 % %% Unrejecting Subject:

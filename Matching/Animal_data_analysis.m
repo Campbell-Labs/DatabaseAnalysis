@@ -1,14 +1,36 @@
 %% User Entry Section
 %Choose your database file
-load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-03-22)'))
+load(fullfile(pwd,'database_tables','Animal Ex Vivo - Database Table (Generated 18-03-22)'))
+
+type = 'stain';
+
+if strcmp(type, 'stain')
 %What will the outputted data file be
-folder_name = '18-02-22_gen_test';
+folder_name = 'animal_stain_test';
 
 % Which diagnosises will be compared
-% Options to choose are High, Intermediate, Low and None
-diagnosis = {'High', 'Intermediate', 'None' }; 
-diagnosis_type = 'Likelihood_of_AD';
-% Note that the last property is the ratioed/subtracted property (control)
+diagnosis = {'Thioflavin', 'Sudan', 'Unstained'}; 
+diagnosis_type = 'Stain';
+end
+
+if strcmp(type, 'cognition')
+%What will the outputted data file be
+folder_name = 'animal_cog_test';
+
+% Which diagnosises will be compared
+diagnosis = {'Impaired', 'Normal'}; 
+diagnosis_type = 'Diagnosis1Type';
+end
+
+%%FIXATION DOESNT WORK ATM
+if strcmp(type, 'fixation')
+%What will the outputted data file be
+folder_name = 'animal_fixation_test';
+
+% Which diagnosises will be compared
+diagnosis = {10, 4}; 
+diagnosis_type = 'InitialFixativePercent';
+end
 
 paired = false;
 
@@ -46,9 +68,9 @@ subtraction = false; %Subtract control from data
 
 % Choose which database subjects to remove
 reject_nan = true; % This is to remove properties which have NaN in calculation
-remove_rejected = true; % This is to remove properties which are rejected
+remove_rejected = false; % This is to remove properties which are rejected
 remove_QuarterArbitrary = false; % This removes deposits which have been flagged as arbitrary quarters
-post_automated = true; % Removes subject index < 30 to ensure all data is post automation
+post_automated = false; % Removes subject index < 30 to ensure all data is post automation
 
 %% Script
 % First we pull in our helper functions to use later
@@ -58,14 +80,6 @@ addpath(genpath('helpers'))
 %IsNewEye and IsNewQuarter can also be split out but are not here
 dbt_s = dbt(dbt.IsNewSubject,:);
 all_subjects = cellstr(dbt_s.SubjectId);
-
-%% First just reducing the databases to only include VA subjects
-% This regular expression simply finds those subjects called VA_###
-VA_regex = ['VA', '.*'];
-
-dbt_VA = match_table_regex(dbt, VA_regex ,'SubjectId');
-dbt_VA_s = match_table_regex(dbt_s, VA_regex ,'SubjectId');
-VA_subjects = cellstr(dbt_VA_s.SubjectId); % This just gives is only the VA subject names
 
 %% Management
 pre_match = ['.*(',match_properties{1}];
@@ -81,7 +95,7 @@ end
 plain_mid_match = [plain_mid_match,')'];
 
 %calculate some properties to use later
-column_names = dbt_VA.Properties.VariableNames;
+column_names = dbt.Properties.VariableNames;
 regex_matcher = [pre_match,'.*',mid_match ,'.*', post_match];
 polarization_properties = column_names(~cellfun(@isempty,regexp(column_names, regex_matcher)));
 plain_props = column_names(~cellfun(@isempty,regexp(column_names, plain_mid_match)));
@@ -89,13 +103,13 @@ plain_props = column_names(~cellfun(@isempty,regexp(column_names, plain_mid_matc
 polarization_properties = [polarization_properties, plain_props];
 
 %% Here I will split up the three groups
-dbt_VA = cleanup_database(dbt_VA, remove_rejected, remove_QuarterArbitrary, ...
+dbt = cleanup_database(dbt, remove_rejected, remove_QuarterArbitrary, ...
     reject_nan, polarization_properties,  post_automated);
 
 % This uses the diagnosis as a regex and this regex matches the diagnosis
 tables = cell(1, length(diagnosis));
 for i = 1:length(diagnosis);
-    tables(1,i) = {match_table_regex(dbt_VA, [diagnosis{i}, '.*'] , diagnosis_type);};
+    tables(1,i) = {match_table_regex(dbt, [diagnosis{i}, '.*'] , diagnosis_type);};
 end
 
 if paired

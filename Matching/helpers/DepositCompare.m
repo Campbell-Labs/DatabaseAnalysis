@@ -214,7 +214,8 @@ for index = 1:table_height;
     for i = length(diag_struct):-1:1
         ANOVA_values(:,i) = diag_struct(i).data(index,:);
     end
-    [p_ANOVA_all(:, index), tbl] = anova1(ANOVA_values, fliplr(diagnosis), 'on');
+    figure('visible','off');
+    [p_ANOVA_all(:, index), tbl] = anova1(ANOVA_values, fliplr(diagnosis), 'off');
     
     % Saving ANOVA data to file here
     fileID = fopen([ANOVA_dir, '\ANOVA_data_', polarization_property,'.txt'],'w');
@@ -227,7 +228,12 @@ for index = 1:table_height;
     end
     fclose(fileID);
     title(strrep(polarization_property,'_',' '));
-    print([ANOVA_dir, '\ANOVA_', polarization_property ],'-dpng')
+         set(gca, 'Box', 'off', 'TickDir', 'out', 'TickLength', [.02 .02], ...
+    'XMinorTick', 'on', 'YMinorTick', 'on', 'YGrid', 'on', ...
+    'XColor', [.3 .3 .3], 'YColor', [.3 .3 .3])
+
+    print([ANOVA_dir, '\ANOVA_', polarization_property ],'-dpng', '-r300')
+    print([ANOVA_dir, '\EPS_ANOVA_', polarization_property ],'-depsc2', '-r300')
     close all
 end
 
@@ -240,8 +246,10 @@ function [ h, p, normal ] = CompareData( x, y, paired)
     % First we should check if the datasets are normal
     if paired 
         if all(~isnan(x)) && all(~isnan(y));
-            x_h = kstest(x);
-            y_h = kstest(y);
+            x_standardized = (x - median(x)) / std(x);
+            x_h = kstest(x_standardized);
+            y_standardized = ( y - median(y) ) / std(y);
+            y_h = kstest(y_standardized);
             normal = y_h && x_h;
             [h,p] = signrank(x,y, 'method','exact');    
         else
