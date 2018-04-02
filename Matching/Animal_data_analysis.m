@@ -2,11 +2,11 @@
 %Choose your database file
 load(fullfile(pwd,'database_tables','Animal Ex Vivo - Database Table (Generated 18-03-22)'))
 
-type = 'stain';
+type = 'cognition';
 
 if strcmp(type, 'stain')
 %What will the outputted data file be
-folder_name = 'animal_stain_test';
+folder_name = 'Final_v0_Animal_Stain_03-22';
 
 % Which diagnosises will be compared
 diagnosis = {'Thioflavin', 'Sudan', 'Unstained'}; 
@@ -15,7 +15,7 @@ end
 
 if strcmp(type, 'cognition')
 %What will the outputted data file be
-folder_name = 'animal_cog_test';
+folder_name = 'Final_v0_Animal_Cog_03-22';
 
 % Which diagnosises will be compared
 diagnosis = {'Impaired', 'Normal'}; 
@@ -25,7 +25,7 @@ end
 %%FIXATION DOESNT WORK ATM
 if strcmp(type, 'fixation')
 %What will the outputted data file be
-folder_name = 'animal_fixation_test';
+folder_name = 'Final_v0_Animal_Cog_03-22';
 
 % Which diagnosises will be compared
 diagnosis = {10, 4}; 
@@ -33,6 +33,7 @@ diagnosis_type = 'InitialFixativePercent';
 end
 
 paired = false;
+legacy_table = false;
 
 if paired
     folder_name = [folder_name, '_Paired'];
@@ -43,8 +44,8 @@ end
 print_graphs = true;
 
 %What should property string start with
-mid_match = '(Deposit|Background)';
-post_match = '(_Median|Size)'; % And what should it end with
+section_type_match = '(Deposit|Background)';
+property_type_match = '(_Median|Size)'; % And what should it end with
 
 % What should be somewhere in the middle
 match_properties = {'Diattenuation_Circ', 'Diattenuation_Lin','DP', 'Retardance_Circ',...
@@ -68,9 +69,9 @@ subtraction = false; %Subtract control from data
 
 % Choose which database subjects to remove
 reject_nan = true; % This is to remove properties which have NaN in calculation
-remove_rejected = false; % This is to remove properties which are rejected
+remove_rejected = false; % Human rejection criteria 
 remove_QuarterArbitrary = false; % This removes deposits which have been flagged as arbitrary quarters
-post_automated = false; % Removes subject index < 30 to ensure all data is post automation
+post_automated = false; % Human variable
 
 %% Script
 % First we pull in our helper functions to use later
@@ -82,17 +83,27 @@ dbt_s = dbt(dbt.IsNewSubject,:);
 all_subjects = cellstr(dbt_s.SubjectId);
 
 %% Management
-pre_match = ['.*(',match_properties{1}];
+property_match = ['.*(',match_properties{1}];
 for i = 2:length(match_properties)
-    pre_match = [pre_match,'|', match_properties{i}];
+    property_match = [property_match,'|', match_properties{i}];
 end
-pre_match = [pre_match,')'];
+property_match = [property_match,')'];
 
 plain_mid_match = ['.*(',plain_match{1}];
 for i = 2:length(plain_match);
-    plain_mid_match = [pre_match,'|', plain_match{i}];
+    plain_mid_match = [property_match,'|', plain_match{i}];
 end
 plain_mid_match = [plain_mid_match,')'];
+
+if legacy_table
+    pre_match = section_type_match;
+    mid_match = property_match;    
+else
+    mid_match = section_type_match;
+    pre_match = property_match;    
+end
+post_match = property_type_match;
+
 
 %calculate some properties to use later
 column_names = dbt.Properties.VariableNames;

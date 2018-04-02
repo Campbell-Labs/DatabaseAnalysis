@@ -2,7 +2,7 @@
 %Choose your database file
 load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-03-22)'))
 %What will the outputted data file be
-folder_name = '18-02-22_gen_test';
+folder_name = 'Final_v0_Human_03-22';
 
 % Which diagnosises will be compared
 % Options to choose are High, Intermediate, Low and None
@@ -11,6 +11,8 @@ diagnosis_type = 'Likelihood_of_AD';
 % Note that the last property is the ratioed/subtracted property (control)
 
 paired = false;
+
+legacy_table = false;
 
 if paired
     folder_name = [folder_name, '_Paired'];
@@ -21,8 +23,8 @@ end
 print_graphs = true;
 
 %What should property string start with
-mid_match = '(Deposit|Background)';
-post_match = '(_Median|Size)'; % And what should it end with
+section_type_match = '(Deposit|Background)';
+property_type_match = '(_Median|Size)'; % And what should it end with
 
 % What should be somewhere in the middle
 match_properties = {'Diattenuation_Circ', 'Diattenuation_Lin','DP', 'Retardance_Circ',...
@@ -68,17 +70,27 @@ dbt_VA_s = match_table_regex(dbt_s, VA_regex ,'SubjectId');
 VA_subjects = cellstr(dbt_VA_s.SubjectId); % This just gives is only the VA subject names
 
 %% Management
-pre_match = ['.*(',match_properties{1}];
+property_match = ['.*(',match_properties{1}];
 for i = 2:length(match_properties)
-    pre_match = [pre_match,'|', match_properties{i}];
+    property_match = [property_match,'|', match_properties{i}];
 end
-pre_match = [pre_match,')'];
+property_match = [property_match,')'];
 
 plain_mid_match = ['.*(',plain_match{1}];
 for i = 2:length(plain_match);
-    plain_mid_match = [pre_match,'|', plain_match{i}];
+    plain_mid_match = [property_match,'|', plain_match{i}];
 end
 plain_mid_match = [plain_mid_match,')'];
+
+if legacy_table
+    pre_match = section_type_match;
+    mid_match = property_match;    
+else
+    mid_match = section_type_match;
+    pre_match = property_match;    
+end
+post_match = property_type_match;
+
 
 %calculate some properties to use later
 column_names = dbt_VA.Properties.VariableNames;
@@ -90,7 +102,7 @@ polarization_properties = [polarization_properties, plain_props];
 
 %% Here I will split up the three groups
 dbt_VA = cleanup_database(dbt_VA, remove_rejected, remove_QuarterArbitrary, ...
-    reject_nan, polarization_properties,  post_automated);
+    reject_nan, polarization_properties,  post_automated, legacy_table);
 
 % This uses the diagnosis as a regex and this regex matches the diagnosis
 tables = cell(1, length(diagnosis));

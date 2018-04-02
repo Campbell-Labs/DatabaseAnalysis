@@ -1,13 +1,36 @@
-function [ dbt ] = cleanup_database(dbt, remove_rejected, remove_QuarterArbitrary, remove_nan, properties, post_automated )
+function [ dbt ] = cleanup_database(dbt, remove_rejected, remove_QuarterArbitrary, remove_nan, properties, post_automated, legacy_table )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
 if remove_nan;
-    dbt = reject_bad(dbt, properties);
+    bad_bool = false(height(dbt), 1);
+    for i = 1:length(properties)
+        property = char(properties(i));
+        bad_bool = bad_bool | isnan(dbt.(property));
+    end
+    dbt_good = dbt(not(bad_bool),:);
+    % This is checking what database entries have bad data but are not rejected
+    % This is possibly useful for sanity checks
+    try
+        if legacy_table
+            dbt.NewRejected(isnan(dbt.NewRejected)) = 1;
+            not_rejected_bad_bool = and(not(dbt.NewRejected), bad_bool);
+        else
+            rejected_bool = (dbt.NewRejected == '0');
+            not_rejected_bad_bool = and(rejected_bool, bad_bool);
+        end
+        dbt_notreject = dbt(not_rejected_bad_bool,:);
+    catch
+    end
 end
 
 if remove_rejected
-    dbt = dbt(dbt.NewRejected == '0', :);
+    if legacy_table
+        dbt.NewRejected(isnan(dbt.NewRejected)) = 1; % Convert NaN's into rejected
+        dbt = dbt(~dbt.NewRejected, :);
+    else
+        dbt = dbt(dbt.NewRejected == '0', :);
+    end
 end
 
 if remove_QuarterArbitrary
