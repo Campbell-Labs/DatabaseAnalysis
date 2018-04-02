@@ -1,14 +1,37 @@
 %% User Entry Section
 %Choose your database file
-load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-03-22)'))
+load(fullfile(pwd,'database_tables','Human Ex Vivo - Database Table (Generated 18-03-22)_edited'))
+%load(fullfile(pwd,'database_tables','Database Table (Human Ex Vivo - Generated 19-Dec-2017)'))
 %What will the outputted data file be
 folder_name = 'Final_v0_Human_03-22';
 
+type = 'diagnosis';
 % Which diagnosises will be compared
 % Options to choose are High, Intermediate, Low and None
-diagnosis = {'High', 'Intermediate', 'None' }; 
-diagnosis_type = 'Likelihood_of_AD';
-% Note that the last property is the ratioed/subtracted property (control)
+if strcmp(type, 'diagnosis')
+    diagnosis = {'High', 'Intermediate', 'Low'}; 
+    diagnosis_type = 'Likelihood_of_AD';
+    folder_name = [folder_name, '_diagnosis'];
+    % Note that the last property is the ratioed/subtracted property (control)
+elseif strcmp(type, 'thal')
+    diagnosis = {'Dense','Moderate', 'None' }; 
+    diagnosis_type = 'Thal_Phase';
+    folder_name = [folder_name, '_thal'];
+    % Note that the last property is the ratioed/subtracted property (control)
+elseif strcmp(type, 'DP')
+    diagnosis = {'Freq', 'Sparse', 'Mod', 'None' }; 
+    diagnosis_type = 'DP_CERAD_Biel';
+    folder_name = [folder_name, '_DP'];
+    % Note that the last property is the ratioed/subtracted property (control)
+elseif strcmp(type, 'rejected')
+    diagnosis = {'Control', 'Layer', 'Quality', 'RPE', 'Tear' }; 
+    diagnosis_type = 'RejectedReason';
+    folder_name = [folder_name, '_rejected'];
+elseif strcmp(type, 'registration')
+    diagnosis = {'Erik', 'Ian','Chris', 'Unknown'}; 
+    diagnosis_type = 'RegistrationType';
+    folder_name = [folder_name, '_registration'];
+end
 
 paired = false;
 
@@ -47,10 +70,11 @@ ratio = false; %Divide by control
 subtraction = false; %Subtract control from data
 
 % Choose which database subjects to remove
-reject_nan = true; % This is to remove properties which have NaN in calculation
+reject_nan = false; % This is to remove properties which have NaN in calculation
 remove_rejected = true; % This is to remove properties which are rejected
 remove_QuarterArbitrary = false; % This removes deposits which have been flagged as arbitrary quarters
 post_automated = true; % Removes subject index < 30 to ensure all data is post automation
+only_erik = false;
 
 %% Script
 % First we pull in our helper functions to use later
@@ -102,7 +126,7 @@ polarization_properties = [polarization_properties, plain_props];
 
 %% Here I will split up the three groups
 dbt_VA = cleanup_database(dbt_VA, remove_rejected, remove_QuarterArbitrary, ...
-    reject_nan, polarization_properties,  post_automated, legacy_table);
+    reject_nan, polarization_properties,  post_automated, only_erik, legacy_table);
 
 % This uses the diagnosis as a regex and this regex matches the diagnosis
 tables = cell(1, length(diagnosis));

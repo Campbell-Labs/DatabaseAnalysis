@@ -11,6 +11,9 @@ mkdir(scatter_directory)
 mkdir(boxplot_directory)
 mkdir(hist_directory)
 
+subject_hist = false;
+three_graph = false;
+
 %Find largest number of samples in subject
 %Brute force approach
 max_samples = 0;
@@ -203,7 +206,8 @@ for pol_prop_index = 1:length(polarization_names)
     title([strrep(polarization_str,'_',' '),' Normalized'])
 
     set_default_graph_properties(false, hist_directory, ['Histogram_Normalized_', polarization_str ])
-
+    
+    if three_graph
     hist3d_data = {vertcat(data(:).hist_total)', vertcat(data(:).hist_total_normed)'};
     hist3d_postpend = {'', 'Normalized'};
     hist3d_alpha = {false, true};
@@ -233,7 +237,9 @@ for pol_prop_index = 1:length(polarization_names)
         set_default_graph_properties(true, hist_directory, ['Histogram_3d_',postpend,'_', polarization_str ])
         
     end
-    
+    end
+    if subject_hist
+    try
     % Try a subject based histogram
     subject_hist_structure = struct();
     colours_to_choose = {'Greens','Reds','Blues','Oranges', 'Purples', 'Spectral'};
@@ -251,7 +257,6 @@ for pol_prop_index = 1:length(polarization_names)
     end
     
     %subject_colours = linspecer(length(subject_hist_structure), 'sequential');
-    try
     set(0,'DefaultFigureColormap',colour_chart);
     figure('visible','off');
     
@@ -263,6 +268,7 @@ for pol_prop_index = 1:length(polarization_names)
      
     set_default_graph_properties(false, hist_directory, ['Subject_Histogram_Normalized_', polarization_str])
     catch
+    end
     end
 %     % I am trying to stack the histograms to show the inter subject
 %     % variability
