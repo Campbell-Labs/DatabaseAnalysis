@@ -407,7 +407,7 @@ function [h,statsOut]=myPlotter(X,Y)
         thisX=violaPoints(thisX,thisY);
         C=cols(k,:);
 
-        h(k).data=plot(thisX, thisY, 'o', 'color', C,...
+        h(k).data=scatter(thisX, thisY, 'o', 'MarkerFaceColor', C,...
                        'markerfacecolor', C+(1-C)*0.65);
     end  %for k=1:length(X)
 

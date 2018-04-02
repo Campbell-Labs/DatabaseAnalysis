@@ -82,6 +82,6 @@ for i = 1:length(dbts);
     dbt_s = [dbt_s; subject_table];
 end
 
-writetable(dbt_s, [directory, '\Subjects_',table_name, datestr(now, 'yy-mm-dd-HH-MM-SS'), '.xlsx'],'WriteRowNames',true)
+writetable(dbt_s, [directory, '\Subjects_',table_name, '.xlsx'],'WriteRowNames',true)
 
 end

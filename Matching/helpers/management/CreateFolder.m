@@ -16,7 +16,7 @@ end
 
 output_directory = fullfile(directory, folder_name);
 
-new_folder = [pre_name, datestr(now, 'yy-mm-dd-HH-MM-SS')];
+new_folder = [pre_name, datestr(now, 'mm-dd-HH-MM')];
 output_folder = fullfile(output_directory, new_folder);
 
 mkdir(output_folder)

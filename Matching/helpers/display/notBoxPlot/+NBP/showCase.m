@@ -95,7 +95,7 @@ y(1:8,end-1:end)=nan; %Decrease sample size in the last two plots
 
 H=notBoxPlot(y,x,'jitter',0.6,'style','sdline');
 set(H(end).data,'Marker','^',...
-    'MarkerSize',5)
+    'SizeData',5)
 set([H.sd],'LineWidth',4)
 box on
 grid on

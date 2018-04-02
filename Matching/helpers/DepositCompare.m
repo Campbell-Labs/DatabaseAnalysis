@@ -201,7 +201,8 @@ for index = 1:table_height;
          ] = CompareData(prop_1, prop_2, 0);
      %%
      try
-         comparison_ANOVA = anova1([prop_1;prop_2]',[], 'off');
+         figure('visible', 'off')
+         comparison_ANOVA = anova1([prop_1;prop_2]',[], 'hide');
      catch
          comparison_ANOVA = NaN;
      end
